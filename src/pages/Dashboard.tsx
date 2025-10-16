@@ -7,6 +7,9 @@ const Dashboard: React.FC = () => {
       <p className="text-gray-600 mt-2">
         Bienvenido al sistema de gestión del restaurante.
       </p>
+      <button className="bg-primary text-white px-4 py-2 rounded-lg">
+        Boton
+      </button>
     </div>
   );
 };
