@@ -7,41 +7,68 @@ interface Props {
 }
 
 export const MesaCard: React.FC<Props> = ({ mesa }) => {
-  const estadoStyles: Record<string, string> = {
-    LIBRE: "border-green-400 bg-green-50",
-    OCUPADA: "border-red-400 bg-red-50",
-    ESPERANDO: "border-yellow-400 bg-yellow-50",
-    AGRUPADA: "border-purple-400 bg-purple-50",
+  const estadoStyles: Record<
+    string,
+    { border: string; bg: string; text: string }
+  > = {
+    LIBRE: {
+      border: "border-green-500",
+      bg: "bg-green-500",
+      text: "text-green-700",
+    },
+    OCUPADA: {
+      border: "border-red-500",
+      bg: "bg-red-500",
+      text: "text-red-700",
+    },
+    ESPERANDO: {
+      border: "border-yellow-500",
+      bg: "bg-yellow-500",
+      text: "text-yellow-700",
+    },
+    AGRUPADA: {
+      border: "border-purple-500",
+      bg: "bg-purple-500",
+      text: "text-purple-700",
+    },
+  };
+
+  const color = estadoStyles[mesa.estado] || {
+    border: "border-gray-300",
+    bg: "bg-gray-300",
+    text: "text-gray-700",
   };
 
   return (
     <div
-      className={`border-2 rounded-xl p-4 shadow-sm ${
-        estadoStyles[mesa.estado]
-      }`}
+      className={`relative border-2 rounded-xl p-4 shadow-sm cursor-pointer transition transform hover:scale-[1.02] hover:shadow-md text-center bg-white ${color.border}`}
+      style={{ minHeight: "120px" }} // Mantiene tamaño uniforme
     >
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold text-lg">{mesa.nombre}</h3>
-          <p className="text-sm text-gray-600">{mesa.capacidad} personas</p>
-        </div>
-        {mesa.principal && (
-          <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-            PRINCIPAL
-          </span>
-        )}
-      </div>
+      {/* Etiqueta del grupo (arriba a la izquierda) */}
+      {mesa.grupo && (
+        <span className="absolute top-2 left-2 bg-purple-600 text-white text-xs font-semibold px-2 py-1 rounded">
+          Grupo {mesa.grupo}
+        </span>
+      )}
 
-      <div className="mt-4">
-        <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-white shadow">
+      {/* Nombre y capacidad */}
+      <h3 className="font-bold text-lg mt-2">{mesa.nombre}</h3>
+      <p className="text-sm text-gray-600 mb-3">{mesa.capacidad} personas</p>
+
+      {/* Estado */}
+      <div className="mb-1">
+        <span
+          className={`inline-block text-xs font-semibold px-3 py-1 rounded-full text-white ${color.bg}`}
+        >
           {mesa.estado}
         </span>
       </div>
 
-      {mesa.grupo && (
-        <div className="mt-3">
-          <span className="inline-block text-xs font-medium px-2 py-1 rounded bg-purple-600 text-white">
-            Grupo {mesa.grupo}
+      {/* Etiqueta de principal */}
+      {mesa.principal && (
+        <div className="mt-2">
+          <span className="inline-block text-xs font-semibold text-gray-700 bg-gray-200 px-2 py-1 rounded">
+            GRUPO PRINCIPAL
           </span>
         </div>
       )}

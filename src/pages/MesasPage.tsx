@@ -41,10 +41,10 @@ const Inner = () => {
   };
 
   return (
-    <Layout pageTitle="Mesas">
+    <Layout>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold">Mesas</h2>
+          <h2 className="text-3xl font-bold">Mesas</h2>
         </div>
 
         <div className="flex items-center gap-3">
@@ -87,10 +87,10 @@ const Inner = () => {
 
       {/* Grid de mesas */}
       <div className="bg-white rounded-xl p-6 shadow">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
           {mesas.map((mesa) => (
             <div key={mesa.id} className="relative">
-              {/* Checkbox en modo delete */}
+              {/* Checkbox en modo eliminar */}
               {mode === "DELETE" && (
                 <input
                   type="checkbox"
@@ -100,20 +100,17 @@ const Inner = () => {
                 />
               )}
 
-              {/* Edit button in edit mode */}
+              {/* Botón editar en modo edición */}
               {mode === "EDIT" && (
                 <button
                   onClick={() => openForEdit(mesa.id)}
-                  className="absolute top-2 right-2 z-20 bg-white border rounded px-2 py-1 text-sm"
+                  className="absolute top-2 right-2 z-20 bg-white border rounded px-2 py-1 text-xs font-medium shadow-sm"
                 >
                   Editar
                 </button>
               )}
 
-              <div
-                onClick={() => openDetail(mesa.id)}
-                className="cursor-pointer"
-              >
+              <div onClick={() => openDetail(mesa.id)}>
                 <MesaCard mesa={mesa} />
               </div>
             </div>

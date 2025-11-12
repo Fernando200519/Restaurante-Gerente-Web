@@ -1,4 +1,3 @@
-// src/context/MesasContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Mesa } from "../types/mesa";
 import * as api from "../api/mesasApi";
