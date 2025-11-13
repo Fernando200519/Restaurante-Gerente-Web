@@ -33,4 +33,5 @@ export interface Mesa {
   mesero?: string;
   orden?: Orden | null;
   updatedAt?: string; // ISO, para calcular tiempo transcurrido
+  zona?: string;
 }

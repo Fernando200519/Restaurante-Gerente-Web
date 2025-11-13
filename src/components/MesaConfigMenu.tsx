@@ -24,7 +24,7 @@ const MesaConfigMenu: React.FC = () => {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((s) => !s)}
-        className="p-2 rounded-md bg-white border shadow hover:shadow-md"
+        className="p-2 rounded-md bg-white border shadow hover:shadow-md cursor-pointer"
         title="Configuración"
       >
         <img src="/icons/gear.svg" alt="Config" className="h-6 w-6" />
