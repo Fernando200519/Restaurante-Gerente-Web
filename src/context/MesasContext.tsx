@@ -4,6 +4,12 @@ import * as api from "../api/mesasApi";
 
 type Mode = "NORMAL" | "EDIT" | "DELETE";
 
+interface NuevaMesaData {
+  nombre: string;
+  capacidad: number;
+  zona: string;
+}
+
 interface MesasContextType {
   mesas: Mesa[];
   loading: boolean;
@@ -12,9 +18,12 @@ interface MesasContextType {
   refresh: () => Promise<void>;
   setMode: (m: Mode) => void;
   toggleSelect: (id: number) => void;
-  addMesa: (capacidad: number) => Promise<void>;
-  updateMesa: (id: number, capacidad: number) => Promise<void>;
+
+  addMesa: (data: NuevaMesaData) => Promise<void>;
+  updateMesa: (id: number, capacidad: number, zona: string) => Promise<void>;
+
   deleteSelected: () => Promise<void>;
+  deleteMesa: (id: number) => Promise<void>;
   openMesaById: (id: number) => Promise<Mesa | null>;
 }
 
@@ -55,13 +64,13 @@ export const MesasProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const addMesa = async (capacidad: number) => {
-    const nueva = await api.addMesa(capacidad);
-    setMesas((p) => [nueva, ...p]);
+  const addMesa = async (data: NuevaMesaData) => {
+    const nueva = await api.addMesa(data);
+    setMesas((p) => [...p, nueva]);
   };
 
-  const updateMesa = async (id: number, capacidad: number) => {
-    const updated = await api.editMesa(id, capacidad);
+  const updateMesa = async (id: number, capacidad: number, zona: string) => {
+    const updated = await api.editMesa(id, capacidad, zona);
     if (updated) setMesas((p) => p.map((m) => (m.id === id ? updated : m)));
   };
 
@@ -71,6 +80,11 @@ export const MesasProvider: React.FC<{ children: React.ReactNode }> = ({
     setMesas((p) => p.filter((m) => !selectedIds.includes(m.id)));
     setSelectedIds([]);
     setMode("NORMAL");
+  };
+
+  const deleteMesa = async (id: number) => {
+    await api.deleteMesas([id]);
+    setMesas((p) => p.filter((m) => m.id !== id));
   };
 
   const openMesaById = async (id: number) => {
@@ -90,6 +104,7 @@ export const MesasProvider: React.FC<{ children: React.ReactNode }> = ({
         addMesa,
         updateMesa,
         deleteSelected,
+        deleteMesa,
         openMesaById,
       }}
     >

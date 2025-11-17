@@ -1,8 +1,8 @@
-// src/api/mesasApi.ts
 import { Orden, Platillo, Mesa, Comensal } from "../types/mesa";
 
 const now = new Date().toISOString();
 
+// helpers (omitidos para brevedad - igual que tenías)
 const makePlatillo = (
   id: number,
   nombre: string,
@@ -43,11 +43,19 @@ const ordenExample = (id: number): Orden => ({
 });
 
 let MOCK_MESAS: Mesa[] = [
-  { id: 1, nombre: "Mesa 1", capacidad: 2, estado: "LIBRE", updatedAt: now },
+  {
+    id: 1,
+    nombre: "Mesa 1",
+    capacidad: 2,
+    zona: "Salón Principal",
+    estado: "LIBRE",
+    updatedAt: now,
+  },
   {
     id: 2,
     nombre: "Mesa 2",
     capacidad: 2,
+    zona: "Terraza",
     estado: "OCUPADA",
     mesero: "Luisa",
     orden: ordenExample(101),
@@ -57,6 +65,7 @@ let MOCK_MESAS: Mesa[] = [
     id: 3,
     nombre: "Mesa 3",
     capacidad: 4,
+    zona: "Patio",
     estado: "OCUPADA",
     mesero: "Marcos",
     orden: ordenExample(102),
@@ -66,6 +75,7 @@ let MOCK_MESAS: Mesa[] = [
     id: 4,
     nombre: "Mesa 4",
     capacidad: 8,
+    zona: "Salón Principal",
     estado: "AGRUPADA",
     grupo: "1",
     principal: true,
@@ -76,17 +86,33 @@ let MOCK_MESAS: Mesa[] = [
     id: 5,
     nombre: "Mesa 5",
     capacidad: 4,
+    zona: "Salón Principal",
     estado: "AGRUPADA",
     grupo: "1",
     orden: ordenExample(103),
     updatedAt: now,
   },
-  { id: 6, nombre: "Mesa 6", capacidad: 2, estado: "LIBRE", updatedAt: now },
-  { id: 7, nombre: "Mesa 7", capacidad: 2, estado: "LIBRE", updatedAt: now },
+  {
+    id: 6,
+    nombre: "Mesa 6",
+    capacidad: 2,
+    zona: "Barra",
+    estado: "LIBRE",
+    updatedAt: now,
+  },
+  {
+    id: 7,
+    nombre: "Mesa 7",
+    capacidad: 2,
+    zona: "Terraza",
+    estado: "LIBRE",
+    updatedAt: now,
+  },
   {
     id: 8,
     nombre: "Mesa 8",
     capacidad: 4,
+    zona: "Patio",
     estado: "OCUPADA",
     orden: ordenExample(104),
     updatedAt: now,
@@ -95,16 +121,32 @@ let MOCK_MESAS: Mesa[] = [
     id: 9,
     nombre: "Mesa 9",
     capacidad: 6,
+    zona: "Patio",
     estado: "ESPERANDO",
     orden: ordenExample(105),
     updatedAt: now,
   },
-  { id: 10, nombre: "Mesa 10", capacidad: 4, estado: "LIBRE", updatedAt: now },
-  { id: 11, nombre: "Mesa 11", capacidad: 6, estado: "LIBRE", updatedAt: now },
+  {
+    id: 10,
+    nombre: "Mesa 10",
+    capacidad: 4,
+    zona: "Barra",
+    estado: "LIBRE",
+    updatedAt: now,
+  },
+  {
+    id: 11,
+    nombre: "Mesa 11",
+    capacidad: 6,
+    zona: "Salón Principal",
+    estado: "LIBRE",
+    updatedAt: now,
+  },
   {
     id: 12,
     nombre: "Mesa 12",
     capacidad: 2,
+    zona: "Terraza",
     estado: "OCUPADA",
     updatedAt: now,
   },
@@ -115,28 +157,46 @@ export const getMesas = async (): Promise<Mesa[]> => {
   return structuredClone(MOCK_MESAS);
 };
 
-export const addMesa = async (capacidad: number): Promise<Mesa> => {
+export const addMesa = async (data: {
+  nombre: string;
+  capacidad: number;
+  zona: string;
+}): Promise<Mesa> => {
   await wait(200);
-  const id = Math.max(...MOCK_MESAS.map((m) => m.id)) + 1;
+
+  const id = Math.max(...MOCK_MESAS.map((m) => m.id), 0) + 1;
+
   const nueva: Mesa = {
     id,
-    nombre: `Mesa ${id}`,
-    capacidad,
+    nombre: data.nombre,
+    capacidad: data.capacidad,
+    zona: data.zona,
     estado: "LIBRE",
     updatedAt: new Date().toISOString(),
   };
-  MOCK_MESAS = [nueva, ...MOCK_MESAS];
+
+  MOCK_MESAS = [...MOCK_MESAS, nueva];
   return structuredClone(nueva);
 };
 
 export const editMesa = async (
   id: number,
-  capacidad: number
+  capacidad: number,
+  zona: string
 ): Promise<Mesa | null> => {
   await wait(200);
+
   MOCK_MESAS = MOCK_MESAS.map((m) =>
-    m.id === id ? { ...m, capacidad, updatedAt: new Date().toISOString() } : m
+    m.id === id
+      ? {
+          ...m,
+          capacidad,
+          zona,
+          updatedAt: new Date().toISOString(),
+        }
+      : m
   );
+
   return structuredClone(MOCK_MESAS.find((m) => m.id === id) || null);
 };
 
