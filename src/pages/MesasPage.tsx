@@ -21,27 +21,34 @@ const Inner = () => {
   const [zonaSeleccionada, setZonaSeleccionada] = useState<string>("Todas");
   const [zonasModalOpen, setZonasModalOpen] = useState(false);
 
-  // Reconstruir lista de zonas a partir de mesas cada vez que cambien
+  // ------------- CORRECCIÓN IMPORTANTE ----------------
+  // Mantener zonas creadas manualmente y agregar solo zonas detectadas en mesas
   useEffect(() => {
-    const fromMesas = Array.from(
+    const zonasEncontradas = Array.from(
       new Set(
-        mesas
-          .map((m) => (m.zona && m.zona.trim() !== "" ? m.zona : "Sin zona"))
-          .filter(Boolean)
+        mesas.map((m) => (m.zona && m.zona.trim() !== "" ? m.zona : "Sin zona"))
       )
     );
 
-    // Asegurarse que "Sin zona" esté presente y "Todas" al inicio
-    const unique = [
-      "Todas",
-      "Sin zona",
-      ...fromMesas.filter((z) => z !== "Sin zona"),
-    ];
+    setZonas((prev) => {
+      const nuevas = [...prev];
 
-    setZonas(unique);
-    // Si la zona seleccionada ya no existe, volver a "Todas"
-    if (!unique.includes(zonaSeleccionada)) setZonaSeleccionada("Todas");
-  }, [mesas]); // eslint-disable-line
+      zonasEncontradas.forEach((z) => {
+        if (!nuevas.includes(z)) nuevas.push(z);
+      });
+
+      // Asegurar orden correcto
+      const todas = nuevas.filter((z) => z !== "Todas" && z !== "Sin zona");
+      return ["Todas", "Sin zona", ...todas];
+    });
+
+    // corregir selección si desapareciera
+    if (!zonas.includes(zonaSeleccionada)) {
+      setZonaSeleccionada("Todas");
+    }
+    // eslint-disable-next-line
+  }, [mesas]);
+  // ------------------------------------------------------
 
   // Filtrar mesas según zonaSeleccionada
   const mesasFiltradas = (
@@ -199,6 +206,7 @@ const Inner = () => {
       <MesaModal
         mesa={mesas.find((m) => m.id === detailMesa) ?? null}
         visible={detailVisible}
+        zonas={zonas} //  <--- ESTA LÍNEA FALTABA
         onClose={() => {
           setDetailVisible(false);
           setDetailMesa(null);

@@ -1,11 +1,4 @@
-import {
-  X,
-  Trash2,
-  Pencil,
-  AlertTriangle,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react";
+import { X, Trash2, Pencil } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useMesasContext } from "../context/MesasContext";
 
@@ -297,14 +290,14 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
 
       {/* === NUEVAS ALERTAS MODALES (Superpuestas) === */}
       {internalModal.isOpen && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/20">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-gray-100 transform scale-100 animate-in zoom-in-95 duration-200">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-gray-100 transform scale-100 animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center">
               <h3 className="text-lg font-bold text-[#000000] mb-2">
                 {internalModal.title}
               </h3>
 
-              <p className="text-gray-500 mb-6">{internalModal.message}</p>
+              <p className="text-gray-700 mb-6">{internalModal.message}</p>
 
               <div className="flex gap-3 w-full">
                 {/* Si es solo alerta, botón único */}

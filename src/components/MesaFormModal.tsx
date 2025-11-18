@@ -26,6 +26,19 @@ const MesaFormModal: React.FC<Props> = ({
 
   const [modeEdit, setModeEdit] = useState(false);
 
+  // --- NUEVO: Bloquear scroll del body cuando el modal está visible ---
+  useEffect(() => {
+    if (visible) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [visible]);
+  // -------------------------------------------------------------------
+
   // Cálculo del nombre autogenerado con numeración global (por id)
   const siguienteNumero = Math.max(...mesas.map((m) => m.id), 0) + 1;
   const nombreSugerido = `Mesa ${siguienteNumero}`;
