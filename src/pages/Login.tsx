@@ -6,7 +6,7 @@ const Login: React.FC = () => {
     <div className="flex flex-col lg:flex-row h-screen">
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-[#FA9623] text-center p-10 xl:p-20 2xl:p-28">
         <img
-          src="../../public/logo_color.png"
+          src="/login/logo_color.png"
           className="w-96 h-auto"
           alt="Mesa Libre Logo"
         />

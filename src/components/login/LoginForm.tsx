@@ -20,7 +20,7 @@ const LoginForm: React.FC = () => {
       const data = await login({ correo, contraseña });
       loginUser(data);
 
-      window.location.href = "/dashboard";
+      window.location.href = "/mesas";
     } catch (err) {
       setError("Credenciales incorrectas");
     }
@@ -48,7 +48,7 @@ const LoginForm: React.FC = () => {
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-            <img src="/user_icon.svg" className="h-6 w-6" />
+            <img src="/login/user_icon.svg" className="h-6 w-6" />
           </div>
 
           <input
@@ -70,7 +70,7 @@ const LoginForm: React.FC = () => {
 
         <div className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-            <img src="/password_icon.svg" className="h-6 w-6" />
+            <img src="/login/password_icon.svg" className="h-6 w-6" />
           </div>
 
           <input
@@ -89,7 +89,11 @@ const LoginForm: React.FC = () => {
               className="absolute inset-y-0 right-0 flex items-center pr-4 cursor-pointer"
             >
               <img
-                src={isPasswordVisible ? "/eye_closed.svg" : "/eye_open.svg"}
+                src={
+                  isPasswordVisible
+                    ? "/login/eye_closed.svg"
+                    : "/login/eye_open.svg"
+                }
                 className="h-8 w-8"
               />
             </button>

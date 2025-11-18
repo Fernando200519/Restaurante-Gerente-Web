@@ -1,10 +1,11 @@
 import React, { createContext, useState, useContext, ReactNode } from "react";
 import { LoginResponse } from "../types/auth";
-import { saveToken, removeToken } from "../utils/storage";
+import { saveToken, removeToken, getToken } from "../utils/storage";
 
 interface AuthContextType {
   token: string | null;
   userId: number | null;
+  isAuthenticated: boolean;
   loginUser: (data: LoginResponse) => void;
   logoutUser: () => void;
 }
@@ -12,7 +13,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
+  // ⬇️ CARGAR TOKEN DESDE LOCALSTORAGE
+  const [token, setToken] = useState<string | null>(() => getToken());
+
   const [userId, setUserId] = useState<number | null>(null);
 
   const loginUser = (data: LoginResponse) => {
@@ -32,7 +35,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, userId, loginUser, logoutUser }}>
+    <AuthContext.Provider
+      value={{
+        token,
+        userId,
+        isAuthenticated: !!token,
+        loginUser,
+        logoutUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
