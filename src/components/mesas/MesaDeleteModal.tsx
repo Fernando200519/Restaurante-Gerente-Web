@@ -1,6 +1,6 @@
 // src/components/MesaDeleteModal.tsx
 import React from "react";
-import { useMesasContext } from "../context/MesasContext";
+import { useMesasContext } from "../../context/MesasContext";
 
 interface Props {
   visible: boolean;

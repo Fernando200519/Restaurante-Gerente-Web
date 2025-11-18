@@ -1,6 +1,6 @@
 // src/components/MesaStatusTimeline.tsx
 import React from "react";
-import { Platillo } from "../types/mesa";
+import { Platillo } from "../../types/mesa";
 
 const fases = ["TOMADO", "EN_PREPARACION", "LISTO", "ENTREGADO"] as const;
 

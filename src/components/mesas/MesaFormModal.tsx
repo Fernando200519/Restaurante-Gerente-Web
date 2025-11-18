@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useMesasContext } from "../context/MesasContext";
+import { useMesasContext } from "../../context/MesasContext";
 
 interface Props {
   visible: boolean;

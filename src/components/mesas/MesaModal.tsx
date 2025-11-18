@@ -1,7 +1,7 @@
 // src/components/MesaModal.tsx
 import React, { useEffect, useState } from "react";
-import { Mesa } from "../types/mesa";
-import { useMesasContext } from "../context/MesasContext";
+import { Mesa } from "../../types/mesa";
+import { useMesasContext } from "../../context/MesasContext";
 import MesaStatusTimeline from "./MesaStatusTimeline";
 
 interface Props {

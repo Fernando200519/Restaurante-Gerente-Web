@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Mesa } from "../types/mesa";
+import { Mesa } from "../../types/mesa";
 
 interface Props {
   mesa: Mesa;

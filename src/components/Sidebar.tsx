@@ -2,11 +2,15 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 
 const items = [
-  { to: "/mesas", label: "Mesas", icon: "/icons/table.svg" },
-  { to: "/ordenes", label: "Órdenes", icon: "/icons/orders.svg" },
-  { to: "/empleados", label: "Empleados", icon: "/icons/employes.svg" },
-  { to: "/menu", label: "Menú", icon: "/icons/menu.svg" },
-  { to: "/ventas", label: "Ventas", icon: "/icons/sales.svg" },
+  { to: "/mesas", label: "Mesas", icon: "/public/sidebar/table.svg" },
+  { to: "/ordenes", label: "Órdenes", icon: "/public/sidebar/orders.svg" },
+  {
+    to: "/empleados",
+    label: "Empleados",
+    icon: "/public/sidebar/employes.svg",
+  },
+  { to: "/menu", label: "Menú", icon: "/public/sidebar/menu.svg" },
+  { to: "/ventas", label: "Ventas", icon: "/public/sidebar/sales.svg" },
 ];
 
 interface SidebarProps {
@@ -95,7 +99,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         >
           {/* B) Iconos aumentados (y su min-w) */}
           <img
-            src="/icons/logout.svg"
+            src="/public/sidebar/logout.svg"
             alt=""
             className="h-6 w-6 min-w-[24px] 2xl:h-7 2xl:w-7 2xl:min-w-[28px]"
           />

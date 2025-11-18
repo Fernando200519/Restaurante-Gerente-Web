@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import Layout from "../components/Layout";
+import Layout from "../components/mesas/Layout";
 import { useMesasContext, MesasProvider } from "../context/MesasContext";
-import MesaFormModal from "../components/MesaFormModal";
-import MesaDeleteModal from "../components/MesaDeleteModal";
-import MesaModal from "../components/MesaModal";
-import { MesaCard } from "../components/MesaCard";
-import ZonasModal from "../components/ZonaModal";
+import MesaFormModal from "../components/mesas/MesaFormModal";
+import MesaDeleteModal from "../components/mesas/MesaDeleteModal";
+import MesaModal from "../components/mesas/MesaModal";
+import { MesaCard } from "../components/mesas/MesaCard";
+import ZonasModal from "../components/mesas/ZonaModal";
 
 const Inner = () => {
   const { mesas, loading, mode, selectedIds, toggleSelect, refresh } =
@@ -94,7 +94,7 @@ const Inner = () => {
               title="Gestionar zonas"
             >
               <img
-                src="/icons/edit.svg"
+                src="/mesas/edit.svg"
                 alt="Editar zonas"
                 className="h-6 w-6 fill-current text-gray-600"
               />

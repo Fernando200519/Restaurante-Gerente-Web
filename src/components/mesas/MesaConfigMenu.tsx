@@ -1,6 +1,6 @@
 // src/components/MesaConfigMenu.tsx
 import React, { useState, useRef, useEffect } from "react";
-import { useMesasContext } from "../context/MesasContext";
+import { useMesasContext } from "../../context/MesasContext";
 import MesaFormModal from "./MesaFormModal";
 import MesaDeleteModal from "./MesaDeleteModal";
 

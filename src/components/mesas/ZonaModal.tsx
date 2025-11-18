@@ -1,6 +1,6 @@
 import { X, Trash2, Pencil } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { useMesasContext } from "../context/MesasContext";
+import { useMesasContext } from "../../context/MesasContext";
 
 interface Props {
   visible: boolean;
