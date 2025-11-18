@@ -5,10 +5,12 @@ const Login: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-screen">
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center bg-[#FA9623] text-center p-10 xl:p-20 2xl:p-28">
-        <h1 className="font-poppins font-bold text-4xl xl:text-5xl text-white mb-6 tracking-tight">
-          Mesa Libre
-        </h1>
-        <h2 className="text-white font-medium text-xl xl:text-2xl max-w-xl">
+        <img
+          src="../../public/logo_color.png"
+          className="w-96 h-auto"
+          alt="Mesa Libre Logo"
+        />
+        <h2 className="text-white font-medium mt-6 text-xl xl:text-2xl max-w-xl">
           Sistema integral para la gestión de tu restaurante.
         </h2>
       </div>

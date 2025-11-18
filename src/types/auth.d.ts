@@ -1,13 +1,20 @@
+// auth.d.ts
 export interface LoginRequest {
-  user: string;
-  password: string;
+  correo: string;
+  contraseña: string;
 }
 
 export interface LoginResponse {
-  token: string;
-  user: {
-    id: number;
-    nombre: string;
-    rol: string;
+  token: {
+    result: string; // JWT REAL
+    id: number; // Id del usuario
+    exception: any;
+    status: number;
+    isCanceled: boolean;
+    isCompleted: boolean;
+    isCompletedSuccessfully: boolean;
+    creationOptions: number;
+    asyncState: any;
+    isFaulted: boolean;
   };
 }
