@@ -1,16 +1,20 @@
+// src/App.tsx (snippet)
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import MesasPage from "./pages/MesasPage";
+import OrdenDetalle from "./pages/OrdenDetalle";
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route></Route>
-        <Route path="*" element={<Navigate to="/login" />}></Route>
+        <Route path="/mesas" element={<MesasPage />} />
+        <Route path="/ordenes/:id" element={<OrdenDetalle />} />
+        <Route path="/" element={<Navigate to="/mesas" />} />
       </Routes>
     </Router>
   );
