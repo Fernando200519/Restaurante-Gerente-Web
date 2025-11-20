@@ -20,7 +20,12 @@ interface MesasContextType {
   toggleSelect: (id: number) => void;
 
   addMesa: (data: NuevaMesaData) => Promise<void>;
-  updateMesa: (id: number, capacidad: number, zona: string) => Promise<void>;
+  updateMesa: (
+    id: number,
+    capacidad: number,
+    zona: string,
+    options?: string
+  ) => Promise<void>;
 
   deleteSelected: () => Promise<void>;
   deleteMesa: (id: number) => Promise<void>;
@@ -69,9 +74,23 @@ export const MesasProvider: React.FC<{ children: React.ReactNode }> = ({
     setMesas((p) => [...p, nueva]);
   };
 
-  const updateMesa = async (id: number, capacidad: number, zona: string) => {
-    const updated = await api.editMesa(id, capacidad, zona);
-    if (updated) setMesas((p) => p.map((m) => (m.id === id ? updated : m)));
+  // 2. Luego, más abajo, actualiza la función updateMesa dentro del Provider:
+  const updateMesa = async (
+    id: number,
+    cap: number,
+    zona: string,
+    nombre?: string
+  ) => {
+    setLoading(true);
+    try {
+      // Asegúrate de importar editMesa desde tu api
+      await api.editMesa(id, cap, zona, nombre);
+      await refresh();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteSelected = async () => {

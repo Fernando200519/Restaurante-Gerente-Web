@@ -10,15 +10,12 @@ import MesasPage from "./pages/MesasPage";
 import LoginPage from "./pages/Login";
 
 const ProtectedRoute = () => {
-  // Asumimos que tu hook useAuth devuelve al usuario o un 'token'
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
-    // Si no está autenticado, lo mandamos al login
     return <Navigate to="/login" replace />;
   }
 
-  // Si sí está autenticado, le mostramos la página que quería ver
   return <Outlet />;
 };
 
@@ -33,15 +30,11 @@ function AppRoutes() {
           isAuthenticated ? <Navigate to="/mesas" replace /> : <LoginPage />
         }
       />
-
-      {/* --- Rutas Protegidas --- */}
-      {/* Todo lo que esté aquí adentro requerirá autenticación */}
       <Route element={<ProtectedRoute />}>
         <Route path="/mesas" element={<MesasPage />} />
         {/* Aquí puedes agregar más rutas protegidas, ej: /cocina, /pedidos */}
       </Route>
 
-      {/* Redirección principal */}
       <Route
         path="/"
         element={
@@ -52,9 +45,6 @@ function AppRoutes() {
   );
 }
 
-/**
- * Envolvemos las rutas con el AuthProvider y el Router
- */
 function App() {
   return (
     <AuthProvider>

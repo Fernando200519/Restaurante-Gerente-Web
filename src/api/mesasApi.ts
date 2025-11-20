@@ -1,46 +1,128 @@
-import { Orden, Platillo, Mesa, Comensal } from "../types/mesa";
+// src/api/mesasApi.ts
+import {
+  Orden,
+  Platillo,
+  Mesa,
+  Comensal,
+  HistorialEstado,
+} from "../types/mesa";
 
 const now = new Date().toISOString();
 
-// helpers (omitidos para brevedad - igual que tenías)
+// Helper para restar minutos (para simular tiempos pasados)
+const subMinutes = (min: number) =>
+  new Date(Date.now() - 1000 * 60 * min).toISOString();
+
+// --- GENERADORES DE DATOS FALSOS ---
+
+const makeHistorial = (estadoActual: string): HistorialEstado[] => {
+  const logs: HistorialEstado[] = [
+    { estado: "TOMADO", timestamp: subMinutes(45), responsable: "Mesero Juan" },
+  ];
+  if (estadoActual !== "TOMADO") {
+    logs.push({
+      estado: "EN_PREPARACION",
+      timestamp: subMinutes(30),
+      responsable: "Cocina",
+    });
+  }
+  if (estadoActual === "LISTO" || estadoActual === "ENTREGADO") {
+    logs.push({
+      estado: "LISTO",
+      timestamp: subMinutes(10),
+      responsable: "Chef Mario",
+    });
+  }
+  return logs;
+};
+
 const makePlatillo = (
   id: number,
   nombre: string,
-  estado: Platillo["estado"]
+  precio: number,
+  estado: Platillo["estado"],
+  estacion: "Cocina" | "Bar",
+  atrasado: boolean = false
 ): Platillo => ({
   id,
   nombre,
+  precio,
   estado,
-  tiempoRegistrado: new Date().toISOString(),
+  estacion,
+  notas: atrasado ? "Sin cebolla (URGENTE)" : "Sin cebolla",
+  tiempoRegistrado: subMinutes(atrasado ? 50 : 15), // Si está atrasado, fue hace mucho
+  requiereAtencion: atrasado,
+  historial: makeHistorial(estado),
 });
 
-const comensalExample = (id: number): Comensal => ({
-  id,
-  nombre: `Comensal ${id}`,
-  platillos: [
-    {
-      id: id * 10 + 1,
-      nombre: "Taco al pastor",
-      estado: "EN_PREPARACION",
-      tiempoRegistrado: now,
-    } as Platillo,
-    {
-      id: id * 10 + 2,
-      nombre: "Agua fresca",
-      estado: "LISTO",
-      tiempoRegistrado: now,
-    } as Platillo,
-  ],
-  montoTotal: 120.5,
-});
+const comensalExample = (id: number, hasAlert: boolean = false): Comensal => {
+  const platillos = [
+    makePlatillo(
+      id * 10 + 1,
+      "Tacos al Pastor",
+      120,
+      hasAlert ? "RETRASADO" : "EN_PREPARACION",
+      "Cocina",
+      hasAlert
+    ),
+    makePlatillo(id * 10 + 2, "Cerveza Modelo", 60, "ENTREGADO", "Bar"),
+  ];
 
-const ordenExample = (id: number): Orden => ({
-  id,
-  mesero: "Juan Pérez",
-  comensales: [comensalExample(1), comensalExample(2)],
-  montoTotal: 241.0,
-  startedAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-});
+  // Calcular total del comensal
+  const total = platillos.reduce((acc, p) => acc + p.precio, 0);
+
+  return {
+    id,
+    nombre: `Comensal ${id}`,
+    platillos,
+    montoTotal: total,
+  };
+};
+
+const ordenExample = (
+  id: number,
+  mesero: string,
+  hasAlert: boolean = false,
+  bigCheck: boolean = false
+): Orden => {
+  const c1 = comensalExample(1, hasAlert);
+  const c2 = bigCheck
+    ? {
+        ...comensalExample(2),
+        platillos: [
+          ...comensalExample(2).platillos,
+          makePlatillo(99, "Botella Champagne", 1500, "ENTREGADO", "Bar"),
+        ],
+      }
+    : comensalExample(2);
+
+  // Recalcular montos del comensal 2 si es bigCheck
+  c2.montoTotal = c2.platillos.reduce((acc, p) => acc + p.precio, 0);
+
+  const comensales = [c1, c2];
+
+  // Cálculos globales de la orden
+  const montoTotal = comensales.reduce(
+    (acc, c) => acc + (c.montoTotal || 0),
+    0
+  );
+
+  // Contar alertas totales buscando en todos los platillos
+  const totalAlertas = comensales
+    .flatMap((c) => c.platillos)
+    .filter((p) => p.requiereAtencion).length;
+
+  return {
+    id,
+    mesero,
+    comensales,
+    montoTotal,
+    totalAlertas,
+    startedAt: subMinutes(hasAlert ? 60 : 25), // Si tiene alerta, lleva más tiempo abierta
+  };
+};
+
+// --- BASE DE DATOS MOCK ---
 
 let MOCK_MESAS: Mesa[] = [
   {
@@ -54,11 +136,12 @@ let MOCK_MESAS: Mesa[] = [
   {
     id: 2,
     nombre: "Mesa 2",
-    capacidad: 2,
+    capacidad: 4,
     zona: "Terraza",
     estado: "OCUPADA",
-    mesero: "Luisa",
-    orden: ordenExample(101),
+    meseroActual: "Luisa", // <--- CORREGIDO: Antes era "mesero"
+    // MESA CON PROBLEMAS (Alerta Roja)
+    orden: ordenExample(101, "Luisa", true),
     updatedAt: now,
   },
   {
@@ -67,8 +150,8 @@ let MOCK_MESAS: Mesa[] = [
     capacidad: 4,
     zona: "Patio",
     estado: "OCUPADA",
-    mesero: "Marcos",
-    orden: ordenExample(102),
+    meseroActual: "Marcos", // <--- CORREGIDO
+    orden: ordenExample(102, "Marcos"),
     updatedAt: now,
   },
   {
@@ -79,7 +162,7 @@ let MOCK_MESAS: Mesa[] = [
     estado: "AGRUPADA",
     grupo: "1",
     principal: true,
-    orden: ordenExample(103),
+    orden: ordenExample(103, "Ana"),
     updatedAt: now,
   },
   {
@@ -89,68 +172,42 @@ let MOCK_MESAS: Mesa[] = [
     zona: "Salón Principal",
     estado: "AGRUPADA",
     grupo: "1",
-    orden: ordenExample(103),
-    updatedAt: now,
-  },
-  {
-    id: 6,
-    nombre: "Mesa 6",
-    capacidad: 2,
-    zona: "Barra",
-    estado: "LIBRE",
-    updatedAt: now,
-  },
-  {
-    id: 7,
-    nombre: "Mesa 7",
-    capacidad: 2,
-    zona: "Terraza",
-    estado: "LIBRE",
+    // La mesa secundaria comparte la orden de la principal visualmente o es null
+    orden: null,
     updatedAt: now,
   },
   {
     id: 8,
     nombre: "Mesa 8",
-    capacidad: 4,
+    capacidad: 6,
     zona: "Patio",
     estado: "OCUPADA",
-    orden: ordenExample(104),
+    meseroActual: "Pedro", // <--- CORREGIDO
+    // MESA VIP (Cuenta Grande)
+    orden: ordenExample(104, "Pedro", false, true),
     updatedAt: now,
   },
   {
     id: 9,
     nombre: "Mesa 9",
-    capacidad: 6,
+    capacidad: 2,
     zona: "Patio",
     estado: "ESPERANDO",
-    orden: ordenExample(105),
+    orden: ordenExample(105, "Sofia"),
     updatedAt: now,
   },
-  {
-    id: 10,
-    nombre: "Mesa 10",
-    capacidad: 4,
-    zona: "Barra",
-    estado: "LIBRE",
+  // Rellenar el resto
+  ...[6, 7, 10, 11, 12].map((id) => ({
+    id,
+    nombre: `Mesa ${id}`,
+    capacidad: id % 2 === 0 ? 4 : 2,
+    zona: id > 10 ? "Barra" : "Terraza",
+    estado: "LIBRE" as const,
     updatedAt: now,
-  },
-  {
-    id: 11,
-    nombre: "Mesa 11",
-    capacidad: 6,
-    zona: "Salón Principal",
-    estado: "LIBRE",
-    updatedAt: now,
-  },
-  {
-    id: 12,
-    nombre: "Mesa 12",
-    capacidad: 2,
-    zona: "Terraza",
-    estado: "OCUPADA",
-    updatedAt: now,
-  },
+  })),
 ];
+
+// --- FUNCIONES API ---
 
 export const getMesas = async (): Promise<Mesa[]> => {
   await wait(300);
@@ -182,7 +239,8 @@ export const addMesa = async (data: {
 export const editMesa = async (
   id: number,
   capacidad: number,
-  zona: string
+  zona: string,
+  nombre?: string // Agregué nombre opcional por si el modal lo envía
 ): Promise<Mesa | null> => {
   await wait(200);
 
@@ -192,6 +250,7 @@ export const editMesa = async (
           ...m,
           capacidad,
           zona,
+          nombre: nombre ?? m.nombre,
           updatedAt: new Date().toISOString(),
         }
       : m
@@ -210,6 +269,7 @@ export const getMesaConOrdenes = async (id: number): Promise<Mesa | null> => {
   return structuredClone(MOCK_MESAS.find((m) => m.id === id) || null);
 };
 
+// Helpers internos
 function wait(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
 }

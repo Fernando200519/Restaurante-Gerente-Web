@@ -1,3 +1,4 @@
+// src/components/mesas/MesaFormModal.tsx
 import React, { useEffect, useState } from "react";
 import { useMesasContext } from "../../context/MesasContext";
 
@@ -26,7 +27,7 @@ const MesaFormModal: React.FC<Props> = ({
 
   const [modeEdit, setModeEdit] = useState(false);
 
-  // --- NUEVO: Bloquear scroll del body cuando el modal está visible ---
+  // Bloquear scroll
   useEffect(() => {
     if (visible) {
       document.body.style.overflow = "hidden";
@@ -37,9 +38,8 @@ const MesaFormModal: React.FC<Props> = ({
       document.body.style.overflow = "auto";
     };
   }, [visible]);
-  // -------------------------------------------------------------------
 
-  // Cálculo del nombre autogenerado con numeración global (por id)
+  // Cálculo del nombre autogenerado
   const siguienteNumero = Math.max(...mesas.map((m) => m.id), 0) + 1;
   const nombreSugerido = `Mesa ${siguienteNumero}`;
 
@@ -48,7 +48,6 @@ const MesaFormModal: React.FC<Props> = ({
       const mesa = mesas.find((m) => m.id === editMesaId);
       if (mesa) {
         setModeEdit(true);
-
         // capacidad
         if (predefined.includes(mesa.capacidad)) {
           setCapacidad(mesa.capacidad);
@@ -57,8 +56,7 @@ const MesaFormModal: React.FC<Props> = ({
           setCapacidad("otro");
           setOtroValor(mesa.capacidad);
         }
-
-        // zona (si no existe en el listado, usar "Sin zona")
+        // zona
         setZona(mesa.zona || "Sin zona");
       }
     } else {
@@ -75,13 +73,13 @@ const MesaFormModal: React.FC<Props> = ({
     let finalCapacidad =
       capacidad === "otro" ? Number(otroValor) : (capacidad as number);
 
-    // Doble seguridad antes de guardar
     if (finalCapacidad > 100) finalCapacidad = 100;
-
     if (!finalCapacidad || finalCapacidad <= 0)
       return alert("Ingresa una capacidad válida (Mínimo 1)");
 
     if (modeEdit && editMesaId) {
+      // Nota: updateMesa ahora acepta nombre, pero mantenemos el existente si no lo cambiamos
+      // Si quisieras permitir editar nombre, tendrías que agregar un state para 'nombre'
       await updateMesa(editMesaId, finalCapacidad, zona);
     } else {
       await addMesa({
@@ -90,7 +88,6 @@ const MesaFormModal: React.FC<Props> = ({
         zona,
       });
     }
-
     onClose();
   };
 
@@ -98,108 +95,199 @@ const MesaFormModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="bg-white rounded-lg p-6 z-10 w-full max-w-md">
-        <h3 className="text-lg font-bold mb-4">
-          {modeEdit ? "Editar Mesa" : "Agregar Mesa"}
-        </h3>
+      {/* Backdrop con Blur */}
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity"
+        onClick={onClose}
+      />
 
-        {/* Nombre autogenerado */}
-        {!modeEdit && (
-          <>
-            <label className="block mb-1 font-semibold">Nombre</label>
-            <input
-              type="text"
-              value={nombreSugerido}
-              disabled
-              className="w-full p-2 bg-gray-100 border rounded mb-3"
-            />
-          </>
-        )}
+      {/* Modal Card */}
+      <div className="bg-white rounded-2xl shadow-2xl z-10 w-full max-w-md overflow-hidden transform transition-all scale-100">
+        {/* Header */}
+        <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            {modeEdit ? (
+              <>
+                <svg
+                  className="w-5 h-5 text-orange-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  ></path>
+                </svg>
+                Editar Mesa
+              </>
+            ) : (
+              <>Nueva Mesa</>
+            )}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit}>
-          <label className="block mb-2">Capacidad</label>
-          <select
-            value={capacidad}
-            onChange={(e) =>
-              setCapacidad(
-                e.target.value === "otro" ? "otro" : Number(e.target.value)
-              )
-            }
-            className="w-full border rounded p-2 mb-3"
-          >
-            {predefined.map((n) => (
-              <option key={n} value={n}>
-                {n} personas
-              </option>
-            ))}
-            <option value="otro">Otro</option>
-          </select>
+          <div className="p-6 space-y-5">
+            <div>
+              <label className="block text-base font-medium text-gray-500 mb-1">
+                Nombre Asignado
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={nombreSugerido}
+                  disabled
+                  className="w-full pl-4 pr-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 font-medium cursor-not-allowed select-none"
+                />
+              </div>
+            </div>
 
-          {/* 👇 AQUÍ ESTÁ LA LÓGICA DE RESTRICCIÓN A 100 */}
-          {capacidad === "otro" && (
-            <input
-              type="number"
-              className="w-full border rounded p-2 mb-3"
-              placeholder="Máximo 100 personas"
-              value={otroValor}
-              min={1}
-              max={100}
-              // Evita que escriban caracteres no numéricos como 'e', '-', '.'
-              onKeyDown={(e) => {
-                if (["e", "E", "-", "+", "."].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
-              onChange={(e) => {
-                // Lógica de "Tope Inteligente"
-                const valStr = e.target.value;
+            {/* Campo Capacidad */}
+            <div>
+              <label className="block text-base font-medium text-gray-700 mb-1">
+                Capacidad de personas
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-2.5 text-gray-400 pointer-events-none"></div>
+                <select
+                  value={capacidad}
+                  onChange={(e) =>
+                    setCapacidad(
+                      e.target.value === "otro"
+                        ? "otro"
+                        : Number(e.target.value)
+                    )
+                  }
+                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all appearance-none bg-white"
+                >
+                  {predefined.map((n) => (
+                    <option key={n} value={n}>
+                      {n} personas
+                    </option>
+                  ))}
+                  <option value="otro">Personalizada...</option>
+                </select>
+                <div className="absolute right-3 top-3 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </div>
+              </div>
 
-                // Permitir borrar todo (string vacío)
-                if (valStr === "") {
-                  setOtroValor("");
-                  return;
-                }
+              {/* Input condicional para 'otro' */}
+              {capacidad === "otro" && (
+                <div className="mt-3 animate-fadeIn">
+                  <input
+                    type="number"
+                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
+                    placeholder="Ingresa el número exacto (Máx 100)"
+                    value={otroValor}
+                    min={1}
+                    max={100}
+                    onKeyDown={(e) =>
+                      ["e", "E", "-", "+", "."].includes(e.key) &&
+                      e.preventDefault()
+                    }
+                    onChange={(e) => {
+                      const valStr = e.target.value;
+                      if (valStr === "") {
+                        setOtroValor("");
+                        return;
+                      }
+                      let val = parseInt(valStr, 10);
+                      if (val > 100) val = 100;
+                      if (val < 1) val = 1;
+                      setOtroValor(val);
+                    }}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
 
-                let val = parseInt(valStr, 10);
+            {/* Campo Zona */}
+            <div>
+              <label className="block text-base font-medium text-gray-700 mb-1">
+                Zona
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-2.5 text-gray-400 pointer-events-none"></div>
+                <select
+                  value={zona}
+                  onChange={(e) => setZona(e.target.value)}
+                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all appearance-none bg-white"
+                >
+                  {zonas.map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-3 pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                // Si se pasan de 100, forzamos a 100
-                if (val > 100) val = 100;
-                // Si es menor a 1, forzamos a 1
-                if (val < 1) val = 1;
-
-                setOtroValor(val);
-              }}
-            />
-          )}
-
-          {/* Selector zona - usa las zonas pasadas desde MesasPage */}
-          <label className="block mb-2">Zona</label>
-          <select
-            value={zona}
-            onChange={(e) => setZona(e.target.value)}
-            className="w-full border rounded p-2 mb-3"
-          >
-            {zonas.map((z) => (
-              <option key={z} value={z}>
-                {z}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex justify-end gap-2">
+          {/* Footer con botones */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded border"
+              className="px-5 py-2 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-offset-1 focus:ring-gray-200 transition-colors shadow-sm cursor-pointer"
             >
               Cancelar
             </button>
+
             <button
               type="submit"
-              className="px-4 py-2 bg-orange-500 text-white rounded"
+              className="px-5 py-2 text-base font-medium text-white bg-[#FA9623] rounded-lg hover:bg-[#e88b1f] focus:ring-2 focus:ring-offset-1 focus:ring-[#FA9623] transition-all shadow-md hover:shadow-lg cursor-pointer"
             >
-              {modeEdit ? "Actualizar" : "Agregar"}
+              {modeEdit ? "Guardar Cambios" : "Crear Mesa"}
             </button>
           </div>
         </form>

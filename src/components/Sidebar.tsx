@@ -43,7 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <img
             src="/logo_white.svg"
             alt="Logo"
-            className="h-10 w-10 min-w-[40px]"
+            className="h-10 w-10 min-w-10"
           />
           <div
             className={`transition-opacity duration-300 text-white ${
@@ -76,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <img
                   src={it.icon}
                   alt=""
-                  className="h-6 w-6 min-w-[24px] 2xl:h-7 2xl:w-7 2xl:min-w-[28px]"
+                  className="h-6 w-6 min-w-6 2xl:h-7 2xl:w-7 2xl:min-w-7"
                 />
                 <span
                   className={`transition-opacity duration-300 ${
@@ -101,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <img
             src="/sidebar/logout.svg"
             alt=""
-            className="h-6 w-6 min-w-[24px] 2xl:h-7 2xl:w-7 2xl:min-w-[28px]"
+            className="h-6 w-6 min-w-6 2xl:h-7 2xl:w-7 2xl:min-w-7"
           />
           <span
             className={`transition-opacity duration-300 ${
