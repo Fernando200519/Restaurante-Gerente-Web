@@ -4,9 +4,8 @@ import {
   Trash2,
   Pencil,
   Check,
-  Lock,
-  AlertTriangle,
-  AlertCircle,
+  Eye, // <--- NUEVO
+  EyeOff, // <--- NUEVO
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useMesasContext } from "../../context/MesasContext";
@@ -16,6 +15,10 @@ interface Props {
   zonas: string[];
   setZonas: React.Dispatch<React.SetStateAction<string[]>>;
   onClose: () => void;
+
+  // 👇 NUEVO
+  disabledZones: string[];
+  setDisabledZones: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 type InternalModalState = {
@@ -26,7 +29,14 @@ type InternalModalState = {
   targetZona?: string;
 };
 
-const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
+const ZonasModal: React.FC<Props> = ({
+  visible,
+  zonas,
+  setZonas,
+  onClose,
+  disabledZones,
+  setDisabledZones,
+}) => {
   const { mesas, updateMesa } = useMesasContext();
 
   const [newZona, setNewZona] = useState("");
@@ -73,6 +83,17 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
 
   const closeInternal = () => {
     setInternalModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // --- NUEVO: Lógica para alternar estado ---
+  const toggleZoneStatus = (zonaName: string) => {
+    if (disabledZones.includes(zonaName)) {
+      // Si ya está desactivada, la activamos (sacándola de la lista)
+      setDisabledZones((prev) => prev.filter((z) => z !== zonaName));
+    } else {
+      // Si está activa, la desactivamos (agregándola a la lista)
+      setDisabledZones((prev) => [...prev, zonaName]);
+    }
   };
 
   // --- LÓGICA DE NEGOCIO (Intacta) ---
@@ -131,7 +152,7 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
       isOpen: true,
       type: "confirm_move",
       title: "Mover y Eliminar",
-      message: `La zona "${zona}" tiene  mesas libres. Si la eliminas, estas mesas se moverán a "Sin zona".`,
+      message: `La zona "${zona}" tiene mesas libres. Si la eliminas, estas mesas se moverán a "Sin zona".`,
       targetZona: zona,
     });
   };
@@ -179,6 +200,7 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
     const zonaAntigua = zonas[editingIndex as number];
     setZonas((prev) => prev.map((z, i) => (i === editingIndex ? name : z)));
 
+    // Renombrar mesas asociadas
     mesas
       .filter(
         (m) =>
@@ -226,6 +248,8 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
           {zonas.map((zona, i) => {
             const isSystem = zona === "Todas" || zona === "Sin zona";
             const isEditing = editingIndex === i;
+            // Checar si está desactivada
+            const isDisabled = disabledZones.includes(zona);
 
             return (
               <div
@@ -233,6 +257,8 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
                 className={`group flex items-center justify-between border rounded-xl p-3 transition-all ${
                   isSystem
                     ? "bg-gray-100 border-gray-300"
+                    : isDisabled
+                    ? "bg-gray-50 border-gray-200 opacity-75" // Estilo visual desactivado
                     : "bg-white border-gray-300 hover:border-[#FA9623] hover:shadow-sm"
                 }`}
               >
@@ -261,10 +287,14 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-3">
                       <span
-                        className={`font-medium pl-3 text-base ${
-                          isSystem ? "text-gray-500" : "text-gray-800"
+                        className={`font-medium text-base ${
+                          isSystem
+                            ? "text-gray-500"
+                            : isDisabled
+                            ? "text-gray-400 line-through decoration-gray-300" // Efecto tachado si está inactiva
+                            : "text-gray-800"
                         }`}
                       >
                         {zona}
@@ -273,6 +303,25 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
 
                     {!isSystem && (
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* BOTÓN ACTIVAR/DESACTIVAR */}
+                        <button
+                          onClick={() => toggleZoneStatus(zona)}
+                          className={`p-2 rounded-lg transition cursor-pointer ${
+                            isDisabled
+                              ? "text-gray-400 hover:text-green-600 hover:bg-green-50"
+                              : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          }`}
+                          title={
+                            isDisabled ? "Activar zona" : "Desactivar zona"
+                          }
+                        >
+                          {isDisabled ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
+
                         <button
                           onClick={() => handleEdit(i)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
@@ -319,7 +368,7 @@ const ZonasModal: React.FC<Props> = ({ visible, zonas, setZonas, onClose }) => {
         </div>
       </div>
 
-      {/* === ALERTAS INTERNAS (Visualmente Mejoradas) === */}
+      {/* === ALERTAS INTERNAS === */}
       {internalModal.isOpen && (
         <div className="absolute inset-0 z-60 flex items-center justify-center bg-black/30 backdrop-blur-[1px] p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border border-gray-100 animate-in zoom-in-95 duration-200">

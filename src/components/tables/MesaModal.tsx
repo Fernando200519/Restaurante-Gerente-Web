@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { Mesa, Platillo } from "../../types/mesa";
 import { useMesasContext } from "../../context/MesasContext";
-// Agregamos AlertTriangle para el ícono de advertencia
-import { AlertTriangle } from "lucide-react";
+// Agregamos Clock para el tiempo
+import { AlertTriangle, Clock } from "lucide-react";
 
 interface Props {
   mesa: Mesa | null;
@@ -24,127 +24,102 @@ const formatCurrency = (n?: number) =>
         minimumFractionDigits: 2,
       });
 
-const formatTime = (isoString?: string) => {
-  if (!isoString) return "";
-  return new Date(isoString).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 // --- COMPONENTE DE FILA DE PLATILLO ---
 const PlatilloRow: React.FC<{ platillo: Platillo; comensalNombre: string }> = ({
   platillo,
   comensalNombre,
 }) => {
-  const [showTimeline, setShowTimeline] = useState(false);
   const isDelayed = platillo.requiereAtencion;
 
-  const estadoColors: Record<string, string> = {
-    TOMADO: "bg-blue-100 text-blue-800",
-    EN_PREPARACION: "bg-yellow-100 text-yellow-800",
-    LISTO: "bg-green-100 text-green-800",
-    ENTREGADO: "bg-gray-100 text-gray-600",
-    RETRASADO: "bg-red-100 text-red-800",
+  // Calculamos el tiempo en el estado actual
+  const tiempoEnEstado = (() => {
+    if (!platillo.tiempoRegistrado) return 0;
+    const inicio = new Date(platillo.tiempoRegistrado).getTime();
+    const ahora = Date.now();
+    return Math.max(0, Math.floor((ahora - inicio) / 60000));
+  })();
+
+  const estadoStyles: Record<string, string> = {
+    TOMADO: "bg-blue-100 text-blue-700 border-blue-200",
+    EN_PREPARACION: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    LISTO: "bg-green-100 text-green-700 border-green-200",
+    ENTREGADO: "bg-gray-100 text-gray-600 border-gray-200",
+    RETRASADO: "bg-red-100 text-red-700 border-red-200",
   };
 
   return (
     <div
-      className={`border rounded-lg p-3 mb-3 bg-white shadow-sm transition-all ${
-        isDelayed ? "border-red-300 bg-red-50" : "border-gray-200"
+      className={`relative flex flex-col bg-white border rounded-xl shadow-sm transition-all duration-200 overflow-hidden group ${
+        isDelayed
+          ? "border-red-300 shadow-red-100 ring-1 ring-red-100"
+          : "border-gray-200 hover:border-gray-300 mb-3"
       }`}
     >
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-800">{platillo.nombre}</span>
-            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+      {/* Contenido Principal */}
+      <div className="p-4 flex justify-between items-start gap-4">
+        {/* IZQUIERDA: Info del Platillo */}
+        <div className="flex flex-col justify-start items-start gap-1.5">
+          {/* Nombre Grande */}
+          <span className="text-xl font-bold text-gray-800">
+            {platillo.nombre}
+          </span>
+
+          {/* Badge Comensal (Sutil) */}
+          <div className="flex items-center">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[14px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
               {comensalNombre}
             </span>
           </div>
-          <div className="text-xs text-gray-500 mt-1 space-y-1">
-            {platillo.estacion && <div>📍 Estación: {platillo.estacion}</div>}
-            {platillo.notas && (
-              <div className="text-orange-600 italic">📝 {platillo.notas}</div>
-            )}
-          </div>
         </div>
 
-        <div className="text-right">
-          <div className="font-bold text-emerald-600">
+        {/* DERECHA: Metadatos (Alineados a la derecha) */}
+        <div className="flex flex-col items-end gap-1.5">
+          {/* Precio */}
+          <div className="text-xl font-bold text-emerald-600 tracking-tight">
             {formatCurrency(platillo.precio)}
           </div>
+
+          {/* Estado Badge */}
           <span
-            className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
-              estadoColors[platillo.estado] || "bg-gray-100"
+            className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+              estadoStyles[platillo.estado] ||
+              "bg-gray-100 text-gray-500 border-gray-200"
             }`}
           >
             {platillo.estado.replace("_", " ")}
           </span>
+
+          {/* Tiempo (Con ícono) */}
+          <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
+            <Clock size={12} />
+            <span>Hace {tiempoEnEstado} min</span>
+          </div>
         </div>
       </div>
 
+      {/* FOOTER DE ALERTA (Solo si es necesario) */}
       {isDelayed && (
-        <div className="mt-2 flex items-center text-xs text-red-600 font-bold animate-pulse">
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="mr-1"
-          >
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          ¡Requiere atención inmediata!
+        <div className="bg-red-50 px-4 py-2 flex items-center gap-2 border-t border-red-100">
+          <div className="bg-red-100 p-1 rounded-full animate-pulse">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              className="text-red-600"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <span className="text-xs font-bold text-red-700 uppercase tracking-wide">
+            Requiere atención inmediata
+          </span>
         </div>
       )}
-
-      <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
-        <button
-          onClick={() => setShowTimeline(!showTimeline)}
-          className="text-xs text-blue-500 hover:underline flex items-center gap-1"
-        >
-          {showTimeline ? "Ocultar historial" : "Ver flujo de tiempo"}
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`transform transition ${
-              showTimeline ? "rotate-180" : ""
-            }`}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-
-        {showTimeline && platillo.historial && (
-          <div className="mt-3 ml-1 pl-3 border-l-2 border-blue-100 space-y-3">
-            {platillo.historial.map((h, idx) => (
-              <div key={idx} className="relative text-xs">
-                <div className="absolute -left-[17px] top-0.5 w-2 h-2 rounded-full bg-blue-400 ring-2 ring-white"></div>
-                <div className="flex justify-between">
-                  <span className="font-semibold text-gray-700">
-                    {h.estado}
-                  </span>
-                  <span className="text-gray-400">
-                    {formatTime(h.timestamp)}
-                  </span>
-                </div>
-                {h.responsable && (
-                  <div className="text-gray-500 italic">{h.responsable}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 };
@@ -163,7 +138,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
   const [zona, setZona] = useState(mesa?.zona ?? "Sin zona");
   const [loading, setLoading] = useState(false);
 
-  // ESTADO NUEVO: Controla el modal interno de borrar
+  // Modal interno de borrar
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -188,7 +163,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
       setOtroValor(mesa.capacidad ?? "");
     }
     setActiveTab("DETALLES");
-    setShowDeleteConfirm(false); // Resetear al cambiar mesa
+    setShowDeleteConfirm(false);
   }, [mesa]);
 
   useEffect(() => {
@@ -217,15 +192,12 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
     }
   };
 
-  // --- LÓGICA DE BORRADO (NUEVA) ---
-
-  // Paso 1: Solicitar borrado (abre modal interno)
+  // --- LÓGICA DE BORRADO ---
   const requestDelete = () => {
     if (!isEditable) return;
     setShowDeleteConfirm(true);
   };
 
-  // Paso 2: Confirmar borrado (ejecuta acción)
   const confirmDelete = async () => {
     setLoading(true);
     try {
@@ -237,14 +209,16 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
     }
   };
 
-  // --- DATOS ADAPTADOS ---
+  // --- DATOS ADAPTADOS Y FILTRADOS ---
   const ordenActiva = localMesa.orden;
   const todosLosPlatillos =
     ordenActiva?.comensales.flatMap((comensal) =>
-      comensal.platillos.map((platillo) => ({
-        ...platillo,
-        comensalNombre: comensal.nombre,
-      }))
+      comensal.platillos
+        .filter((p) => p.estado !== "ENTREGADO" && p.estado !== "CANCELADO")
+        .map((platillo) => ({
+          ...platillo,
+          comensalNombre: comensal.nombre,
+        }))
     ) || [];
 
   const minutosAbierta = ordenActiva?.startedAt
@@ -259,14 +233,14 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
         onClick={onClose}
       />
 
       {/* MODAL PRINCIPAL */}
       <div className="bg-white rounded-xl overflow-hidden z-10 w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col relative">
         {/* HEADER */}
-        <div className="bg-linear-to-r from-orange-600 to-orange-500 p-5 text-white flex items-center justify-between shrink-0">
+        <div className="bg-linear-to-r from-[#FA9623] to-[#FA9623] p-5 text-white flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-2xl font-bold flex items-center gap-2">
               {localMesa.nombre}
@@ -274,34 +248,40 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                 {localMesa.estado}
               </span>
             </h3>
-            <div className="text-sm mt-1 text-orange-100 flex gap-4">
+            <div className="text-base mt-1 text-orange-100 flex gap-4">
               <span>
-                👤 Mesero:{" "}
+                Mesero:{" "}
                 <strong className="text-white">
                   {localMesa.meseroActual ?? ordenActiva?.mesero ?? "—"}
                 </strong>
               </span>
               <span>
-                ⏱ Tiempo:{" "}
+                Tiempo:{" "}
                 <strong className="text-white">{minutosAbierta} min</strong>
+              </span>
+              <span>
+                Comensales:{" "}
+                <strong className="text-white">
+                  {ordenActiva?.comensales?.length || 0}/{localMesa.capacidad}
+                </strong>
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white text-2xl transition"
+            className="text-white/80 hover:text-white text-2xl transition cursor-pointer"
           >
             ✕
           </button>
         </div>
 
         {/* TABS */}
-        <div className="border-b bg-gray-50 px-6 shrink-0">
+        <div className=" bg-gray-50 px-6 shrink-0">
           <nav className="flex gap-6">
             <button
-              className={`py-3 text-sm font-medium border-b-2 transition ${
+              className={`py-3 text-base font-medium border-b-2 transition cursor-pointer ${
                 activeTab === "DETALLES"
-                  ? "border-orange-500 text-orange-600"
+                  ? "border-[#FA9623] text-[#FA9623]"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
               onClick={() => setActiveTab("DETALLES")}
@@ -309,9 +289,9 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
               Pedidos Activos ({todosLosPlatillos.length})
             </button>
             <button
-              className={`py-3 text-sm font-medium border-b-2 transition ${
+              className={`py-3 text-base font-medium border-b-2 transition cursor-pointer ${
                 activeTab === "EDITAR"
-                  ? "border-orange-500 text-orange-600"
+                  ? "border-[#FA9623] text-[#FA9623]"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
               onClick={() => setActiveTab("EDITAR")}
@@ -322,49 +302,56 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
         </div>
 
         {/* CONTENIDO */}
-        <div className="p-6 overflow-y-auto bg-gray-50 flex-1">
+        <div className="p-6 overflow-y-auto bg-gray-50 flex-1 flex flex-col">
           {activeTab === "DETALLES" && (
-            <div className="space-y-1">
-              {todosLosPlatillos.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="text-gray-300 mb-2 text-4xl">🍽️</div>
-                  <p className="text-gray-500">No hay pedidos activos.</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between items-end mb-4 px-1">
-                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
-                      Desglose de cuenta
-                    </h4>
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500">
-                        Total Acumulado
-                      </div>
-                      <div className="text-xl font-bold text-gray-800">
-                        {formatCurrency(ordenActiva?.montoTotal)}
-                      </div>
-                    </div>
+            <>
+              {/* Lista de Platillos con Scroll */}
+              <div className="flex-1 overflow-y-auto pb-20">
+                {" "}
+                {/* pb-20 para dar espacio al footer fijo */}
+                {todosLosPlatillos.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-gray-500 text-[18px]">
+                      No hay pedidos pendientes.
+                    </p>
                   </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                      Ordenes activas
+                    </h4>
+                    {todosLosPlatillos.map((p) => (
+                      <PlatilloRow
+                        key={p.id}
+                        platillo={p}
+                        comensalNombre={p.comensalNombre}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                  {todosLosPlatillos.map((p) => (
-                    <PlatilloRow
-                      key={p.id}
-                      platillo={p}
-                      comensalNombre={p.comensalNombre}
-                    />
-                  ))}
-                </>
+              {/* --- FOOTER FIJO (Total Acumulado) --- */}
+              {todosLosPlatillos.length > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 pr-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex justify-end items-center z-10">
+                  <div className="flex flex-col items-end">
+                    <span className="text-base text-gray-400 font-medium">
+                      Total Acumulado
+                    </span>
+                    <span className="text-2xl font-bold text-emerald-600">
+                      {formatCurrency(ordenActiva?.montoTotal)}
+                    </span>
+                  </div>
+                </div>
               )}
-            </div>
+            </>
           )}
 
           {activeTab === "EDITAR" && (
             <div className="bg-white p-6 rounded-lg border shadow-sm">
               {!isEditable && (
-                <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 text-amber-700 rounded flex items-start gap-3">
-                  <span className="text-xl">⚠️</span>
+                <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded flex items-start gap-3">
                   <div>
-                    <p className="font-bold">Modo de Solo Lectura</p>
                     <p className="text-sm">
                       No se puede editar una mesa mientras está ocupada.
                     </p>
@@ -374,11 +361,11 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
 
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-base font-medium text-gray-700 mb-1">
                     Nombre de la Mesa
                   </label>
                   <input
-                    disabled={!isEditable}
+                    disabled={isEditable}
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                     className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none disabled:bg-gray-100"
@@ -387,7 +374,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-base font-medium text-gray-700 mb-1">
                       Capacidad
                     </label>
                     <select
@@ -411,7 +398,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-base font-medium text-gray-700 mb-1">
                       Zona
                     </label>
                     <select
@@ -448,32 +435,42 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                   </div>
                 )}
 
-                <div className="pt-6 border-t flex justify-end gap-3">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancelar
-                  </button>
+                {/* Footer de Edición */}
+                <div className="pt-6 border-t border-gray-100 mt-auto">
+                  {isEditable ? (
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div>
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="text-gray-500 text-base font-medium hover:text-gray-700 underline decoration-gray-300 underline-offset-4 transition-colors cursor-pointer"
+                        >
+                          Desactivar Mesa
+                        </button>
+                      </div>
 
-                  {isEditable && (
-                    <>
-                      {/* BOTÓN "ELIMINAR" QUE DETONA EL MODAL INTERNO */}
-                      <button
-                        onClick={requestDelete}
-                        disabled={loading}
-                        className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        Eliminar Mesa
-                      </button>
-                      <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 shadow-md transition-colors"
-                      >
-                        Guardar Cambios
-                      </button>
-                    </>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={requestDelete}
+                          disabled={loading}
+                          className="px-4 py-2 text-red-600 bg-red-50 border border-transparent rounded-lg font-medium hover:bg-red-100 hover:border-red-200 transition-all cursor-pointer"
+                        >
+                          Eliminar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleSave}
+                          disabled={loading}
+                          className="px-6 py-2 text-white bg-[#FA9623] rounded-lg font-bold shadow-md hover:bg-[#e88b1f] hover:shadow-lg transform active:scale-95 transition-all cursor-pointer"
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end"></div>
                   )}
                 </div>
               </div>
@@ -481,7 +478,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
           )}
         </div>
 
-        {/* === MICRO-MODAL DE CONFIRMACIÓN (Overlay Interno) === */}
+        {/* MICRO-MODAL DE CONFIRMACIÓN */}
         {showDeleteConfirm && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[2px] p-6 animate-in fade-in duration-200">
             <div className="bg-white p-6 rounded-2xl shadow-2xl border border-red-100 w-full max-w-sm animate-in zoom-in-95 duration-200">

@@ -1,11 +1,11 @@
 // src/pages/MesasPage.tsx
 import React, { useEffect, useState } from "react";
-import Layout from "../components/Layout";
+// import Layout from "../components/Layout";  <-- ELIMINADO
 import { useMesasContext, MesasProvider } from "../context/MesasContext";
-import MesaFormModal from "../components/mesas/MesaFormModal";
-import MesaModal from "../components/mesas/MesaModal";
-import { MesaCard } from "../components/mesas/MesaCard";
-import ZonasModal from "../components/mesas/ZonaModal";
+import MesaFormModal from "../components/tables/MesaFormModal";
+import MesaModal from "../components/tables/MesaModal";
+import { MesaCard } from "../components/tables/MesaCard";
+import ZonasModal from "../components/tables/ZonaModal";
 
 const Inner = () => {
   const { mesas, loading, mode, selectedIds, toggleSelect, refresh } =
@@ -19,6 +19,8 @@ const Inner = () => {
   const [zonas, setZonas] = useState<string[]>(["Todas", "Sin zona"]);
   const [zonaSeleccionada, setZonaSeleccionada] = useState<string>("Todas");
   const [zonasModalOpen, setZonasModalOpen] = useState(false);
+
+  const [disabledZones, setDisabledZones] = useState<string[]>([]);
 
   // --- LÓGICA DE ZONAS ---
   useEffect(() => {
@@ -52,17 +54,22 @@ const Inner = () => {
             (m.zona && m.zona.trim() !== "" ? m.zona : "Sin zona") ===
             zonaSeleccionada
         )
-  ).sort((a, b) => {
-    // 1. Prioridad: Mesas con alertas van primero
-    const alertasA = a.orden?.totalAlertas || 0;
-    const alertasB = b.orden?.totalAlertas || 0;
-    if (alertasA !== alertasB) return alertasB - alertasA; // Mayor alerta primero
+  ) // 👇 NUEVO: excluir mesas de zonas desactivadas
+    .filter((m) => {
+      const zonaMesa = m.zona && m.zona.trim() !== "" ? m.zona : "Sin zona";
+      return !disabledZones.includes(zonaMesa);
+    })
+    .sort((a, b) => {
+      // 1. Prioridad: Mesas con alertas van primero
+      const alertasA = a.orden?.totalAlertas || 0;
+      const alertasB = b.orden?.totalAlertas || 0;
+      if (alertasA !== alertasB) return alertasB - alertasA; // Mayor alerta primero
 
-    // 2. Orden numérico por nombre (Mesa 1, Mesa 2...)
-    const numA = parseInt(a.nombre.replace(/\D/g, ""), 10) || 0;
-    const numB = parseInt(b.nombre.replace(/\D/g, ""), 10) || 0;
-    return numA - numB;
-  });
+      // 2. Orden numérico por nombre (Mesa 1, Mesa 2...)
+      const numA = parseInt(a.nombre.replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(b.nombre.replace(/\D/g, ""), 10) || 0;
+      return numA - numB;
+    });
 
   // --- ESTADÍSTICAS (KPIs) ---
   const total = mesasFiltradas.length;
@@ -85,7 +92,9 @@ const Inner = () => {
   };
 
   return (
-    <Layout>
+    <>
+      {" "}
+      {/* <-- CAMBIADO Layout POR UN FRAGMENTO VACÍO */}
       <div className="space-y-8 pb-10">
         {/* Header y Zonas */}
         <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
@@ -114,73 +123,94 @@ const Inner = () => {
             </button>
 
             <div className="flex flex-1 items-center gap-8 overflow-x-auto custom-scrollbar w-0 pr-4">
-              {zonas.map((zona) => (
-                <button
-                  key={zona}
-                  onClick={() => setZonaSeleccionada(zona)}
-                  className={`shrink-0 pb-1 text-[18px] font-bold tracking-wide transition cursor-pointer ${
-                    zonaSeleccionada === zona
-                      ? "text-[#FA9623] border-b-2 border-[#FA9623]"
-                      : "text-gray-400 hover:text-gray-600"
-                  }`}
-                >
-                  {zona}
-                </button>
-              ))}
+              {zonas.map((zona) => {
+                // 1. Verificamos si la zona está en la lista de deshabilitadas
+                const isDisabled = disabledZones.includes(zona);
+
+                return (
+                  <button
+                    disabled={isDisabled}
+                    key={zona}
+                    onClick={() => setZonaSeleccionada(zona)}
+                    // 2. Aplicamos clases condicionales
+                    className={`shrink-0 pb-1 text-[18px] font-bold transition ${
+                      isDisabled
+                        ? "text-gray-300 decoration-2 decoration-gray-300 opacity-60"
+                        : zonaSeleccionada === zona
+                        ? "text-[#FA9623] border-b-2 border-[#FA9623] cursor-pointer"
+                        : "text-gray-400 hover:text-gray-600 cursor-pointer "
+                    }`}
+                  >
+                    {zona}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <button
             onClick={() => setAddModalOpen(true)}
-            className="shrink-0 px-4 py-2 bg-[#FA9623] text-base text-white rounded-lg font-medium hover:bg-[#e68a1f] transition shadow-sm flex items-center gap-2 cursor-pointer"
+            className="shrink-0 px-4 py-2 bg-[#FA9623] text-[18px] text-white rounded-lg font-medium hover:bg-[#e68a1f] transition shadow-sm flex items-center gap-2 cursor-pointer"
           >
-            + Agregar Mesa
+            <span className="text-xl">+</span> Agregar Mesa
           </button>
         </div>
 
-        {/* KPIs Superiores */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {/* KPI Total */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">Total Mesas</div>
-            <div className="text-2xl font-bold text-gray-800">{total}</div>
-          </div>
-
-          {/* KPI Libres */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">Libres</div>
-            <div className="text-2xl font-bold text-[#22C55E]">{libres}</div>
-          </div>
-
-          {/* KPI Ocupadas */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">Ocupadas</div>
-            <div className="text-2xl font-bold text-[#EF4444]">{ocupadas}</div>
-          </div>
-
-          {/* KPI Esperando */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">
-              Esperando Cuenta
+        {/* KPIs Superiores: Solo mostrar si NO es "Sin zona" */}
+        {zonaSeleccionada !== "Sin zona" && (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            {/* KPI Total */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">
+                Total Mesas
+              </div>
+              <div className="text-2xl font-bold text-gray-800">{total}</div>
             </div>
-            <div className="text-2xl font-bold text-[#F59E0B]">{esperando}</div>
-          </div>
 
-          {/* KPI Grupos */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">Grupos</div>
-            <div className="text-2xl font-bold text-[#A855F7]">{grupos}</div>
-          </div>
+            {/* KPI Libres */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">Libres</div>
+              <div className="text-2xl font-bold text-[#22C55E]">{libres}</div>
+            </div>
 
-          {/* KPI Reservadas */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-            <div className="text-base text-gray-400 font-bold">Reservadas</div>
-            <div className="text-2xl font-bold text-gray-800">...</div>
+            {/* KPI Ocupadas */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">
+                Ocupadas
+              </div>
+              <div className="text-2xl font-bold text-[#EF4444]">
+                {ocupadas}
+              </div>
+            </div>
+
+            {/* KPI Esperando */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">
+                Esperando Cuenta
+              </div>
+              <div className="text-2xl font-bold text-[#F59E0B]">
+                {esperando}
+              </div>
+            </div>
+
+            {/* KPI Grupos */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">Grupos</div>
+              <div className="text-2xl font-bold text-[#A855F7]">{grupos}</div>
+            </div>
+
+            {/* KPI Reservadas */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
+              <div className="text-[18px] text-gray-400 font-bold">
+                Reservadas
+              </div>
+              <div className="text-2xl font-bold text-gray-800">...</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Grid Mesas */}
-        <div className="bg-gray-50/50 rounded-2xl p-4">
+        <div className=" rounded-2xl p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
             {mesasFiltradas.map((mesa) => (
               <div key={mesa.id} className="relative group">
@@ -211,7 +241,6 @@ const Inner = () => {
           </div>
         </div>
       </div>
-
       {/* Modales */}
       <MesaFormModal
         visible={addModalOpen}
@@ -223,7 +252,6 @@ const Inner = () => {
             : zonaSeleccionada
         }
       />
-
       <MesaModal
         mesa={mesas.find((m) => m.id === detailMesa) ?? null}
         visible={detailVisible}
@@ -234,14 +262,15 @@ const Inner = () => {
           refresh();
         }}
       />
-
       <ZonasModal
         visible={zonasModalOpen}
         zonas={zonas}
         setZonas={setZonas}
         onClose={() => setZonasModalOpen(false)}
+        disabledZones={disabledZones}
+        setDisabledZones={setDisabledZones}
       />
-    </Layout>
+    </>
   );
 };
 

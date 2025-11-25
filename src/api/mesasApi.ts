@@ -122,6 +122,54 @@ const ordenExample = (
   };
 };
 
+// --- ORDEN PERSONALIZADA MESA 2 (MUCHOS ITEMS) ---
+const ordenMesa2: Orden = {
+  id: 200,
+  mesero: "Luisa",
+  startedAt: subMinutes(64),
+  totalAlertas: 1,
+  montoTotal: 0, // Se calcula abajo
+  comensales: [
+    {
+      id: 1,
+      nombre: "Comensal 1",
+      platillos: [
+        makePlatillo(201, "Tacos al Pastor", 120, "RETRASADO", "Cocina", true),
+        makePlatillo(202, "Cerveza Victoria", 45, "ENTREGADO", "Bar"),
+      ],
+    },
+    {
+      id: 2,
+      nombre: "Comensal 2",
+      platillos: [
+        makePlatillo(203, "Guacamole c/ Totopos", 95, "LISTO", "Cocina"),
+        makePlatillo(204, "Limonada Mineral", 35, "ENTREGADO", "Bar"),
+      ],
+    },
+    {
+      id: 3,
+      nombre: "Comensal 3",
+      platillos: [
+        makePlatillo(205, "Arrachera 300g", 280, "EN_PREPARACION", "Cocina"),
+        makePlatillo(206, "Copa Vino Tinto", 110, "ENTREGADO", "Bar"),
+      ],
+    },
+    {
+      id: 4,
+      nombre: "Comensal 4",
+      platillos: [
+        makePlatillo(207, "Pastel de Chocolate", 85, "TOMADO", "Cocina"),
+        makePlatillo(208, "Café Americano", 40, "TOMADO", "Bar"),
+      ],
+    },
+  ],
+};
+// Calculamos el total de la Mesa 2 automáticamente
+ordenMesa2.montoTotal = ordenMesa2.comensales.reduce(
+  (acc, c) => acc + c.platillos.reduce((pAcc, p) => pAcc + p.precio, 0),
+  0
+);
+
 // --- BASE DE DATOS MOCK ---
 
 let MOCK_MESAS: Mesa[] = [
@@ -139,9 +187,9 @@ let MOCK_MESAS: Mesa[] = [
     capacidad: 4,
     zona: "Terraza",
     estado: "OCUPADA",
-    meseroActual: "Luisa", // <--- CORREGIDO: Antes era "mesero"
-    // MESA CON PROBLEMAS (Alerta Roja)
-    orden: ordenExample(101, "Luisa", true),
+    meseroActual: "Luisa",
+    // USAMOS LA ORDEN GRANDE AQUÍ 👇
+    orden: ordenMesa2,
     updatedAt: now,
   },
   {
@@ -150,7 +198,7 @@ let MOCK_MESAS: Mesa[] = [
     capacidad: 4,
     zona: "Patio",
     estado: "OCUPADA",
-    meseroActual: "Marcos", // <--- CORREGIDO
+    meseroActual: "Marcos",
     orden: ordenExample(102, "Marcos"),
     updatedAt: now,
   },
@@ -182,7 +230,7 @@ let MOCK_MESAS: Mesa[] = [
     capacidad: 6,
     zona: "Patio",
     estado: "OCUPADA",
-    meseroActual: "Pedro", // <--- CORREGIDO
+    meseroActual: "Pedro",
     // MESA VIP (Cuenta Grande)
     orden: ordenExample(104, "Pedro", false, true),
     updatedAt: now,

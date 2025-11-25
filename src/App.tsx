@@ -8,6 +8,8 @@ import {
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import MesasPage from "./pages/MesasPage";
 import LoginPage from "./pages/Login";
+import OrdersPage from "./pages/OrdersPage";
+import Layout from "./components/Layout"; // 👈 1. Asegúrate de importar tu Layout
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -31,7 +33,24 @@ function AppRoutes() {
         }
       />
       <Route element={<ProtectedRoute />}>
-        <Route path="/mesas" element={<MesasPage />} />
+        {/* 👈 2. Aquí envuelves cada página con <Layout> */}
+        <Route
+          path="/mesas"
+          element={
+            <Layout>
+              <MesasPage />
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/ordenes"
+          element={
+            <Layout>
+              <OrdersPage />
+            </Layout>
+          }
+        />
         {/* Aquí puedes agregar más rutas protegidas, ej: /cocina, /pedidos */}
       </Route>
 

@@ -1,7 +1,7 @@
 // src/components/mesas/MesaCard.tsx
 import React from "react";
 import { Mesa } from "../../types/mesa";
-import { Clock, DollarSign, Users, MapPin, AlertCircle } from "lucide-react"; // Asegúrate de tener lucide-react instalado
+import { Clock, DollarSign, AlertCircle } from "lucide-react"; // Asegúrate de tener lucide-react instalado
 
 interface Props {
   mesa: Mesa;
@@ -141,11 +141,7 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
               <Clock size={12} />
               Tiempo
             </div>
-            <div
-              className={`text-lg font-bold tabular-nums ${
-                minutos && minutos > 60 ? "text-rose-500" : "text-gray-700"
-              }`}
-            >
+            <div className={"text-lg font-bold tabular-num text-gray-700"}>
               {minutos ?? 0}
               <span className="text-xs font-normal text-gray-500 ml-0.5">
                 min
@@ -180,7 +176,7 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
         {/* Izquierda: Alertas o Capacidad (Para que no se vea vacío) */}
         <div className="flex items-center gap-2">
           {alertasActivas > 0 && (
-            <div className="flex items-center gap-1 text-rose-600 bg-rose-50 px-2 py-1 rounded text-xs font-bold animate-pulse">
+            <div className="flex items-center gap-1 text-rose-600 bg-rose-50 px-2 py-1 rounded text-[14px] font-bold animate-pulse">
               <AlertCircle size={12} />
               <span>
                 {alertasActivas} alerta{alertasActivas !== 1 && "s"}
