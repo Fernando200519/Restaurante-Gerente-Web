@@ -7,8 +7,6 @@ export const getZonas = async (): Promise<Zona[]> => {
 
   const data: Zona[] = await res.json();
 
-  // ✅ FILTRO MÁGICO:
-  // Solo dejamos pasar a la App las zonas que NO estén eliminadas.
   return data.filter((z) => z.estado !== "Eliminada");
 };
 

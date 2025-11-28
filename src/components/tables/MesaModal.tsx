@@ -511,7 +511,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                           const val = e.target.value;
                           setZonaId(val === "" ? null : Number(val));
                         }}
-                        className="w-full appearance-none bg-white border border-gray-300 text-gray-700 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 font-medium"
+                        className="w-full appearance-none bg-white border border-gray-300 text-gray-700 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 font-medium cursor-pointer"
                       >
                         {/* 👇 APLICAMOS EL ORDENAMIENTO AQUÍ MISMO 👇 */}
                         {[...zonas]
