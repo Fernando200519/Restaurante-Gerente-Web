@@ -1,13 +1,21 @@
-// src/components/mesas/MesaFormModal.tsx
+// src/components/tables/MesaFormModal.tsx
 import React, { useEffect, useState } from "react";
-import { useMesasContext } from "../../context/MesasContext";
+import { useMesas } from "../../hooks/useMesas"; // ✅ Usamos el Hook nuevo
+import { Zona } from "../../types/mesa";
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   editMesaId?: number | null;
-  zonas: string[];
-  zonaDefault: string;
+
+  // 👇 Recibimos objetos Zona reales
+  zonas: Zona[];
+  // 👇 ID de la zona por defecto (o undefined si es 'Todas')
+  zonaDefaultId?: number;
+
+  // Opcional: si queremos pasar la función desde fuera,
+  // aunque podemos sacarla del hook también.
+  onSubmit?: (data: { capacidad: number; zonaId: number }) => Promise<void>;
 }
 
 const predefined = [2, 4, 6, 8];
@@ -17,79 +25,136 @@ const MesaFormModal: React.FC<Props> = ({
   onClose,
   editMesaId = null,
   zonas,
-  zonaDefault,
+  zonaDefaultId,
 }) => {
-  const { addMesa, mesas, updateMesa } = useMesasContext();
+  // Traemos las acciones y datos del hook
+  const { crearMesa, actualizarMesa, mesas } = useMesas();
 
   const [capacidad, setCapacidad] = useState<number | "otro">(4);
   const [otroValor, setOtroValor] = useState<number | "">("");
-  const [zona, setZona] = useState(zonaDefault);
+
+  // Estado para el ID de la zona (number)
+  const [zonaId, setZonaId] = useState<number | "">("");
 
   const [modeEdit, setModeEdit] = useState(false);
 
-  // Bloquear scroll
+  // Bloquear scroll al abrir
   useEffect(() => {
-    if (visible) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
+    if (visible) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "auto";
     return () => {
       document.body.style.overflow = "auto";
     };
   }, [visible]);
 
-  // Cálculo del nombre autogenerado
-  const siguienteNumero = Math.max(...mesas.map((m) => m.id), 0) + 1;
+  // Cálculo visual del nombre sugerido (Solo cosmético, el backend decide el final)
+  // Buscamos el ID más alto y sumamos 1, o usamos 1 si no hay mesas.
+  const siguienteNumero =
+    mesas.length > 0
+      ? Math.max(
+          ...mesas.map((m) => {
+            // Intentar extraer número del nombre "Mesa 10" -> 10
+            const num = parseInt(m.nombre.replace(/\D/g, ""), 10);
+            return isNaN(num) ? 0 : num;
+          }),
+          0
+        ) + 1
+      : 1;
+
   const nombreSugerido = `Mesa ${siguienteNumero}`;
 
+  // --- EFECTO: Cargar datos al abrir o cambiar modo ---
   useEffect(() => {
-    if (editMesaId) {
-      const mesa = mesas.find((m) => m.id === editMesaId);
-      if (mesa) {
-        setModeEdit(true);
-        // capacidad
-        if (predefined.includes(mesa.capacidad)) {
-          setCapacidad(mesa.capacidad);
-          setOtroValor("");
-        } else {
-          setCapacidad("otro");
-          setOtroValor(mesa.capacidad);
-        }
-        // zona
-        setZona(mesa.zona || "Sin zona");
-      }
-    } else {
-      setModeEdit(false);
-      setCapacidad(4);
-      setOtroValor("");
-      setZona(zonaDefault);
-    }
-  }, [editMesaId, mesas, visible, zonas, zonaDefault]);
+    if (visible) {
+      if (editMesaId) {
+        // MODO EDICIÓN
+        const mesa = mesas.find((m) => m.id === editMesaId);
+        if (mesa) {
+          setModeEdit(true);
 
+          // Cargar Capacidad
+          // TypeScript puede quejarse si mesa.capacidad es null, así que protegemos
+          if (mesa.capacidad && predefined.includes(mesa.capacidad)) {
+            setCapacidad(mesa.capacidad);
+            setOtroValor("");
+          } else {
+            setCapacidad("otro");
+            // ✅ CORRECCIÓN 1: Si es null, pasamos ""
+            setOtroValor(mesa.capacidad ?? "");
+          }
+
+          // Cargar Zona ID
+          // ✅ CORRECCIÓN 2: Convertimos el null de la BD en "" para el Select del Form
+          setZonaId(mesa.zonaId ?? "");
+        }
+      } else {
+        // MODO CREACIÓN
+        setModeEdit(false);
+        setCapacidad(4);
+        setOtroValor("");
+
+        // Si hay un default válido (estamos en un tab de zona), lo usamos.
+        if (zonaDefaultId) {
+          setZonaId(zonaDefaultId);
+        } else if (zonas.length > 0) {
+          // Preseleccionar la primera zona si existe
+          setZonaId(zonas[0].id);
+        } else {
+          // Si no hay zonas, vacio ("")
+          setZonaId("");
+        }
+      }
+    }
+  }, [editMesaId, mesas, visible, zonas, zonaDefaultId]);
+
+  // --- SUBMIT ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. Validar Capacidad
     let finalCapacidad =
       capacidad === "otro" ? Number(otroValor) : (capacidad as number);
-
     if (finalCapacidad > 100) finalCapacidad = 100;
-    if (!finalCapacidad || finalCapacidad <= 0)
-      return alert("Ingresa una capacidad válida (Mínimo 1)");
-
-    if (modeEdit && editMesaId) {
-      // Nota: updateMesa ahora acepta nombre, pero mantenemos el existente si no lo cambiamos
-      // Si quisieras permitir editar nombre, tendrías que agregar un state para 'nombre'
-      await updateMesa(editMesaId, finalCapacidad, zona);
-    } else {
-      await addMesa({
-        nombre: nombreSugerido,
-        capacidad: finalCapacidad,
-        zona,
-      });
+    if (!finalCapacidad || finalCapacidad <= 0) {
+      alert("Ingresa una capacidad válida (Mínimo 1)");
+      return;
     }
-    onClose();
+
+    // 2. Validar Zona
+    if (zonaId === "" || zonaId === undefined) {
+      alert("Debes seleccionar una zona válida.");
+      return;
+    }
+    const finalZonaId = Number(zonaId);
+
+    try {
+      if (modeEdit && editMesaId) {
+        // EDITAR
+        // Nota: Mantenemos el estado actual si no lo cambiamos (o podríamos pasarlo si el modal lo gestionara)
+        await actualizarMesa(editMesaId, finalCapacidad, finalZonaId);
+      } else {
+        // CREAR
+        await crearMesa({
+          capacidad: finalCapacidad,
+          zonaId: finalZonaId,
+        });
+      }
+      onClose();
+    } catch (error) {
+      console.error("Error guardando mesa:", error);
+      alert("Ocurrió un error al guardar la mesa.");
+    }
   };
+
+  // 1. ORDENAR ZONAS: "Sin zona" primero, luego el resto
+  const zonasOrdenadas = [...zonas].sort((a, b) => {
+    const nombreA = a.nombre.trim().toLowerCase();
+    const nombreB = b.nombre.trim().toLowerCase();
+
+    if (nombreA === "sin zona") return -1; // A va primero
+    if (nombreB === "sin zona") return 1; // B va primero
+    return 0; // El resto mantiene su orden original (o usa a.nombre.localeCompare(b.nombre) para alfabético)
+  });
 
   if (!visible) return null;
 
@@ -149,14 +214,20 @@ const MesaFormModal: React.FC<Props> = ({
 
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-5">
+            {/* Campo Nombre (Automático/Readonly) */}
             <div>
               <label className="block text-base font-medium text-gray-500 mb-1">
-                Nombre Asignado
+                Nombre (Automático)
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  value={nombreSugerido}
+                  // Si editamos, mostramos el nombre real. Si creamos, el sugerido.
+                  value={
+                    modeEdit && editMesaId
+                      ? mesas.find((m) => m.id === editMesaId)?.nombre
+                      : nombreSugerido
+                  }
                   disabled
                   className="w-full pl-4 pr-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 font-medium cursor-not-allowed select-none"
                 />
@@ -169,7 +240,6 @@ const MesaFormModal: React.FC<Props> = ({
                 Capacidad de personas
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-2.5 text-gray-400 pointer-events-none"></div>
                 <select
                   value={capacidad}
                   onChange={(e) =>
@@ -188,6 +258,7 @@ const MesaFormModal: React.FC<Props> = ({
                   ))}
                   <option value="otro">Personalizada...</option>
                 </select>
+                {/* Icono Flecha */}
                 <div className="absolute right-3 top-3 pointer-events-none">
                   <svg
                     className="w-4 h-4 text-gray-400"
@@ -210,11 +281,11 @@ const MesaFormModal: React.FC<Props> = ({
                 <div className="mt-3 animate-fadeIn">
                   <input
                     type="number"
-                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
-                    placeholder="Ingresa el número exacto (Máx 100)"
+                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-sm"
+                    placeholder="Ingresa el número exacto (Máx 32)"
                     value={otroValor}
                     min={1}
-                    max={100}
+                    max={32}
                     onKeyDown={(e) =>
                       ["e", "E", "-", "+", "."].includes(e.key) &&
                       e.preventDefault()
@@ -226,7 +297,7 @@ const MesaFormModal: React.FC<Props> = ({
                         return;
                       }
                       let val = parseInt(valStr, 10);
-                      if (val > 100) val = 100;
+                      if (val > 32) val = 32;
                       if (val < 1) val = 1;
                       setOtroValor(val);
                     }}
@@ -242,18 +313,27 @@ const MesaFormModal: React.FC<Props> = ({
                 Zona
               </label>
               <div className="relative">
-                <div className="absolute left-3 top-2.5 text-gray-400 pointer-events-none"></div>
                 <select
-                  value={zona}
-                  onChange={(e) => setZona(e.target.value)}
+                  value={zonaId ?? ""}
+                  // Convertimos a número (ya que ahora Sin Zona tiene ID real)
+                  onChange={(e) => setZonaId(Number(e.target.value))}
                   className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all appearance-none bg-white"
                 >
-                  {zonas.map((z) => (
-                    <option key={z} value={z}>
-                      {z}
+                  {zonasOrdenadas.length === 0 ? (
+                    <option value="" disabled>
+                      No hay zonas creadas
                     </option>
-                  ))}
+                  ) : (
+                    // ✅ USAMOS LA LISTA ORDENADA AQUÍ
+                    zonasOrdenadas.map((z) => (
+                      <option key={z.id} value={z.id}>
+                        {z.nombre}
+                      </option>
+                    ))
+                  )}
                 </select>
+
+                {/* Icono de flecha (se mantiene igual) */}
                 <div className="absolute right-3 top-3 pointer-events-none">
                   <svg
                     className="w-4 h-4 text-gray-400"
@@ -270,6 +350,12 @@ const MesaFormModal: React.FC<Props> = ({
                   </svg>
                 </div>
               </div>
+
+              {zonasOrdenadas.length === 0 && (
+                <p className="text-sm text-red-500 mt-1">
+                  Necesitas crear una zona primero.
+                </p>
+              )}
             </div>
           </div>
 
@@ -285,7 +371,12 @@ const MesaFormModal: React.FC<Props> = ({
 
             <button
               type="submit"
-              className="px-5 py-2 text-base font-medium text-white bg-[#FA9623] rounded-lg hover:bg-[#e88b1f] focus:ring-2 focus:ring-offset-1 focus:ring-[#FA9623] transition-all shadow-md hover:shadow-lg cursor-pointer"
+              disabled={zonas.length === 0}
+              className={`px-5 py-2 text-base font-medium text-white rounded-lg focus:ring-2 focus:ring-offset-1 focus:ring-[#FA9623] transition-all shadow-md hover:shadow-lg cursor-pointer ${
+                zonas.length === 0
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#FA9623] hover:bg-[#e88b1f]"
+              }`}
             >
               {modeEdit ? "Guardar Cambios" : "Crear Mesa"}
             </button>

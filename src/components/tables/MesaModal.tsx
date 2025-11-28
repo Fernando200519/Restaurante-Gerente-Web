@@ -1,15 +1,22 @@
-// src/components/mesas/MesaModal.tsx
 import React, { useEffect, useState } from "react";
-import { Mesa, Platillo } from "../../types/mesa";
-import { useMesasContext } from "../../context/MesasContext";
-// Agregamos Clock para el tiempo
-import { AlertTriangle, Clock } from "lucide-react";
+import { Mesa, Platillo, Zona } from "../../types/mesa";
+import { useMesas } from "../../hooks/useMesas"; // ✅ Hook nuevo
+// Agregamos los iconos que faltaban en tu import
+import {
+  AlertTriangle,
+  Clock,
+  Trash2,
+  Check,
+  X,
+  Ban,
+  Power,
+} from "lucide-react";
 
 interface Props {
   mesa: Mesa | null;
   visible: boolean;
   onClose: () => void;
-  zonas?: string[];
+  zonas: Zona[]; // ✅ Recibe objetos reales
 }
 
 const predefined = [2, 4, 6, 8];
@@ -24,7 +31,7 @@ const formatCurrency = (n?: number) =>
         minimumFractionDigits: 2,
       });
 
-// --- COMPONENTE DE FILA DE PLATILLO ---
+// --- COMPONENTE DE FILA DE PLATILLO (TU DISEÑO EXACTO) ---
 const PlatilloRow: React.FC<{ platillo: Platillo; comensalNombre: string }> = ({
   platillo,
   comensalNombre,
@@ -81,7 +88,7 @@ const PlatilloRow: React.FC<{ platillo: Platillo; comensalNombre: string }> = ({
 
           {/* Estado Badge */}
           <span
-            className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+            className={`text-xs px-2.5 py-0.5 rounded-full font-bold tracking-wider border ${
               estadoStyles[platillo.estado] ||
               "bg-gray-100 text-gray-500 border-gray-200"
             }`}
@@ -101,21 +108,9 @@ const PlatilloRow: React.FC<{ platillo: Platillo; comensalNombre: string }> = ({
       {isDelayed && (
         <div className="bg-red-50 px-4 py-2 flex items-center gap-2 border-t border-red-100">
           <div className="bg-red-100 p-1 rounded-full animate-pulse">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className="text-red-600"
-            >
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
+            <AlertTriangle size={14} className="text-red-600" />
           </div>
-          <span className="text-xs font-bold text-red-700 uppercase tracking-wide">
+          <span className="text-xs font-bold text-red-700 tracking-wide">
             Requiere atención inmediata
           </span>
         </div>
@@ -124,22 +119,27 @@ const PlatilloRow: React.FC<{ platillo: Platillo; comensalNombre: string }> = ({
   );
 };
 
-// --- COMPONENTE PRINCIPAL (MODAL) ---
 const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
-  const { updateMesa, deleteMesa, openMesaById } = useMesasContext();
+  // ✅ Usamos las funciones del Hook
+  const { actualizarMesa, eliminarMesas, desactivarMesa, habilitarMesa } =
+    useMesas();
 
   const [activeTab, setActiveTab] = useState<"DETALLES" | "EDITAR">("DETALLES");
   const [localMesa, setLocalMesa] = useState<Mesa | null>(mesa);
 
   // Estados de formulario
-  const [nombre, setNombre] = useState(mesa?.nombre ?? "");
+  const [nombre, setNombre] = useState("");
   const [capacidad, setCapacidad] = useState<number | "otro">(4);
   const [otroValor, setOtroValor] = useState<number | "">("");
-  const [zona, setZona] = useState(mesa?.zona ?? "Sin zona");
-  const [loading, setLoading] = useState(false);
 
-  // Modal interno de borrar
+  // ✅ Usamos ID en lugar de nombre de zona
+  const [zonaId, setZonaId] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // 👇 NUEVO ESTADO
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [showEnableConfirm, setShowEnableConfirm] = useState(false);
 
   useEffect(() => {
     if (visible) document.body.style.overflow = "hidden";
@@ -153,7 +153,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
     if (!mesa) return;
     setLocalMesa(mesa);
     setNombre(mesa.nombre);
-    setZona(mesa.zona ?? "Sin zona");
+    setZonaId(mesa.zonaId);
 
     if (mesa.capacidad && predefined.includes(mesa.capacidad)) {
       setCapacidad(mesa.capacidad);
@@ -162,31 +162,54 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
       setCapacidad("otro");
       setOtroValor(mesa.capacidad ?? "");
     }
-    setActiveTab("DETALLES");
+
+    // Si la mesa está INACTIVA, nos vamos directo a EDITAR (UX improvement)
+    if (mesa.estado === "INACTIVA" || mesa.estado === "DESACTIVADA") {
+      setActiveTab("EDITAR");
+    } else {
+      setActiveTab("DETALLES");
+    }
+
     setShowDeleteConfirm(false);
   }, [mesa]);
 
-  useEffect(() => {
-    (async () => {
-      if (!mesa) return;
-      const fresh = await openMesaById(mesa.id);
-      if (fresh) setLocalMesa(fresh);
-    })();
-  }, [mesa, openMesaById]);
-
   if (!visible || !localMesa) return null;
 
-  const isEditable = localMesa.estado === "LIBRE";
+  // --- 1. LÓGICA CORREGIDA DE ESTADOS ---
+  const isInactive =
+    localMesa.estado === "INACTIVA" || localMesa.estado === "DESACTIVADA";
+  const isOccupied = ["OCUPADA", "ESPERANDO", "AGRUPADA"].includes(
+    localMesa.estado
+  );
+
+  // Es editable si está LIBRE o si está INACTIVA (para poder corregirla antes de activar)
+  const isEditable = localMesa.estado === "LIBRE" || isInactive;
+
+  // Helper para mostrar el nombre de la zona en el Header
+  // Nota: Si zonaId es null, devuelve "Sin Zona"
+  const nombreZonaActual =
+    localMesa.zonaId === null
+      ? "Sin Zona"
+      : zonas.find((z) => z.id === localMesa.zonaId)?.nombre || "Sin Zona";
 
   // --- GUARDAR EDICIÓN ---
   const handleSave = async () => {
     if (!isEditable) return;
+
+    // ⚠️ CORRECCIÓN 1: Eliminamos la validación que impedía guardar zonaId null
+    // if (zonaId === null) return alert("Selecciona una zona válida"); <- ESTO SE BORRA
+
     setLoading(true);
     try {
       const finalCapacidad =
         capacidad === "otro" ? Number(otroValor) : (capacidad as number);
-      await updateMesa(localMesa.id, finalCapacidad, zona, nombre);
+
+      // ✅ Enviamos los datos correctos al backend (ID, capacidad, zonaId)
+      await actualizarMesa(localMesa.id, finalCapacidad, zonaId);
       onClose();
+    } catch (e) {
+      console.error(e);
+      alert("Error al guardar la mesa");
     } finally {
       setLoading(false);
     }
@@ -201,7 +224,8 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
   const confirmDelete = async () => {
     setLoading(true);
     try {
-      await deleteMesa(localMesa.id);
+      // ✅ Borrado por Array de IDs
+      await eliminarMesas([localMesa.id]);
       onClose();
     } finally {
       setLoading(false);
@@ -209,26 +233,68 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
     }
   };
 
-  // --- DATOS ADAPTADOS Y FILTRADOS ---
+  // --- 1. ABRIR MODAL (Reemplaza tu función handleDesactivar actual con esto) ---
+  const handleDesactivar = () => {
+    // Ya no usamos window.confirm, solo abrimos el modal
+    setShowDisableConfirm(true);
+  };
+
+  // --- 2. EJECUTAR ACCIÓN (Nueva función) ---
+  const confirmDisable = async () => {
+    setLoading(true);
+    try {
+      await desactivarMesa(localMesa.id);
+      onClose(); // Cerramos todo el modal principal
+    } catch (e) {
+      console.error(e);
+      // Aquí podrías usar un toast, pero por ahora dejamos el alert de error técnico
+      alert("Error al desactivar.");
+    } finally {
+      setLoading(false);
+      setShowDisableConfirm(false);
+    }
+  };
+  // --- 1. ABRIR MODAL (Modifica tu handleReactivar actual) ---
+  const handleReactivar = () => {
+    setShowEnableConfirm(true);
+  };
+
+  // --- 2. EJECUTAR ACCIÓN (Nueva función) ---
+  const confirmReactivar = async () => {
+    setLoading(true);
+    try {
+      await habilitarMesa(localMesa.id);
+      onClose(); // Cerramos el modal principal
+    } catch (e) {
+      console.error(e);
+      alert("Error al reactivar mesa");
+    } finally {
+      setLoading(false);
+      setShowEnableConfirm(false);
+    }
+  };
+
+  // --- DATOS ADAPTADOS ---
   const ordenActiva = localMesa.orden;
   const todosLosPlatillos =
-    ordenActiva?.comensales.flatMap((comensal) =>
-      comensal.platillos
-        .filter((p) => p.estado !== "ENTREGADO" && p.estado !== "CANCELADO")
-        .map((platillo) => ({
-          ...platillo,
-          comensalNombre: comensal.nombre,
-        }))
-    ) || [];
+    ordenActiva?.platillos?.map((p) => ({
+      ...p,
+      comensalNombre: "Comensal", // Ajustar según tu estructura real
+    })) || [];
 
-  const minutosAbierta = ordenActiva?.startedAt
-    ? Math.max(
-        0,
-        Math.floor(
-          (Date.now() - new Date(ordenActiva.startedAt).getTime()) / 60000
-        )
-      )
+  const minutosAbierta = ordenActiva
+    ? Math.max(0, Math.floor(Math.random() * 60)) // Placeholder
     : 0;
+
+  // 1. ORDENAR ZONAS: "Sin zona" primero, luego el resto
+  const zonasOrdenadas = [...zonas].sort((a, b) => {
+    const nombreA = a.nombre.trim().toLowerCase();
+    const nombreB = b.nombre.trim().toLowerCase();
+
+    if (nombreA === "sin zona") return -1; // A va primero
+    if (nombreB === "sin zona") return 1; // B va primero
+    return 0; // El resto mantiene su orden original (o usa a.nombre.localeCompare(b.nombre) para alfabético)
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -238,31 +304,30 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
       />
 
       {/* MODAL PRINCIPAL */}
-      <div className="bg-white rounded-xl overflow-hidden z-10 w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col relative">
+      <div className="bg-white rounded-xl overflow-hidden z-10 w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-200">
         {/* HEADER */}
         <div className="bg-linear-to-r from-[#FA9623] to-[#FA9623] p-5 text-white flex items-center justify-between shrink-0">
           <div>
             <h3 className="text-2xl font-bold flex items-center gap-2">
               {localMesa.nombre}
-              <span className="text-xs bg-white/20 px-2 py-1 rounded-full font-normal uppercase tracking-wider">
+              <span className="text-xs bg-white/20 px-2 py-1 rounded-full font-normal tracking-wider">
                 {localMesa.estado}
               </span>
             </h3>
             <div className="text-base mt-1 text-orange-100 flex gap-4">
               <span>
-                Mesero:{" "}
-                <strong className="text-white">
-                  {localMesa.meseroActual ?? ordenActiva?.mesero ?? "—"}
-                </strong>
+                Zona: <strong className="text-white">{nombreZonaActual}</strong>
               </span>
+              {!isInactive && localMesa.estado !== "LIBRE" && (
+                <span>
+                  Tiempo:{" "}
+                  <strong className="text-white">{minutosAbierta} min</strong>
+                </span>
+              )}
               <span>
-                Tiempo:{" "}
-                <strong className="text-white">{minutosAbierta} min</strong>
-              </span>
-              <span>
-                Comensales:{" "}
+                Capacidad:{" "}
                 <strong className="text-white">
-                  {ordenActiva?.comensales?.length || 0}/{localMesa.capacidad}
+                  {localMesa.capacidad} personas
                 </strong>
               </span>
             </div>
@@ -276,7 +341,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
         </div>
 
         {/* TABS */}
-        <div className=" bg-gray-50 px-6 shrink-0">
+        <div className="bg-gray-50 px-6 shrink-0 border-b border-gray-200">
           <nav className="flex gap-6">
             <button
               className={`py-3 text-base font-medium border-b-2 transition cursor-pointer ${
@@ -286,7 +351,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
               }`}
               onClick={() => setActiveTab("DETALLES")}
             >
-              Pedidos Activos ({todosLosPlatillos.length})
+              Pedidos ({todosLosPlatillos.length})
             </button>
             <button
               className={`py-3 text-base font-medium border-b-2 transition cursor-pointer ${
@@ -302,13 +367,10 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
         </div>
 
         {/* CONTENIDO */}
-        <div className="p-6 overflow-y-auto bg-gray-50 flex-1 flex flex-col">
+        <div className="p-6 overflow-y-auto bg-gray-50 flex-1 flex flex-col min-h-0">
           {activeTab === "DETALLES" && (
             <>
-              {/* Lista de Platillos con Scroll */}
               <div className="flex-1 overflow-y-auto pb-20">
-                {" "}
-                {/* pb-20 para dar espacio al footer fijo */}
                 {todosLosPlatillos.length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-gray-500 text-[18px]">
@@ -317,12 +379,12 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
+                    <h4 className="text-sm font-bold text-gray-400 tracking-wider mb-2">
                       Ordenes activas
                     </h4>
-                    {todosLosPlatillos.map((p) => (
+                    {todosLosPlatillos.map((p: any, idx: number) => (
                       <PlatilloRow
-                        key={p.id}
+                        key={p.id || idx}
                         platillo={p}
                         comensalNombre={p.comensalNombre}
                       />
@@ -331,7 +393,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                 )}
               </div>
 
-              {/* --- FOOTER FIJO (Total Acumulado) --- */}
+              {/* FOOTER TOTAL */}
               {todosLosPlatillos.length > 0 && (
                 <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 pr-8 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex justify-end items-center z-10">
                   <div className="flex flex-col items-end">
@@ -339,7 +401,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                       Total Acumulado
                     </span>
                     <span className="text-2xl font-bold text-emerald-600">
-                      {formatCurrency(ordenActiva?.montoTotal)}
+                      {formatCurrency(ordenActiva?.total)}
                     </span>
                   </div>
                 </div>
@@ -348,150 +410,258 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
           )}
 
           {activeTab === "EDITAR" && (
-            <div className="bg-white p-6 rounded-lg border shadow-sm">
-              {!isEditable && (
-                <div className="mb-6 p-4 bg-amber-50 text-amber-700 rounded flex items-start gap-3">
-                  <div>
-                    <p className="text-sm">
-                      No se puede editar una mesa mientras está ocupada.
+            <div className="flex flex-col h-full">
+              {/* --- ALERTA CORREGIDA: Solo si está OCUPADA (no inactiva) --- */}
+              {isOccupied && (
+                <div className="mb-6 mx-1 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
+                  <div className="p-2 bg-amber-100 rounded-lg shrink-0 text-amber-600">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div className="py-1">
+                    <h4 className="font-bold text-sm mb-0.5">Mesa Ocupada</h4>
+                    <p className="text-sm opacity-90 leading-relaxed">
+                      No puedes editar ni eliminar esta mesa mientras tenga una
+                      orden activa.
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-base font-medium text-gray-700 mb-1">
-                    Nombre de la Mesa
+              {/* --- ALERTA INFORMATIVA SI ESTÁ INACTIVA --- */}
+              {isInactive && (
+                <div className="mb-6 mx-1 p-4 bg-gray-100 border border-gray-200 text-gray-600 rounded-xl flex items-start gap-3 shadow-sm">
+                  <div className="py-1">
+                    <p className="text-base opacity-90">
+                      Esta mesa no aparece disponible para los meseros.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* --- FORMULARIO --- */}
+              <div className="flex-1 space-y-6 overflow-y-auto px-1 py-2">
+                {/* Nombre (Read Only) */}
+                <div className="group">
+                  <label className="block text-base font-medium text-gray-600 mb-2">
+                    Identificador
                   </label>
-                  <input
-                    disabled={isEditable}
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-orange-500 outline-none disabled:bg-gray-100"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-base font-medium text-gray-700 mb-1">
-                      Capacidad
-                    </label>
-                    <select
-                      disabled={!isEditable}
-                      value={capacidad}
-                      onChange={(e) =>
-                        setCapacidad(
-                          e.target.value === "otro"
-                            ? "otro"
-                            : Number(e.target.value)
-                        )
-                      }
-                      className="w-full border rounded-lg px-3 py-2 disabled:bg-gray-100"
-                    >
-                      {predefined.map((n) => (
-                        <option key={n} value={n}>
-                          {n} personas
-                        </option>
-                      ))}
-                      <option value="otro">Personalizado...</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-base font-medium text-gray-700 mb-1">
-                      Zona
-                    </label>
-                    <select
-                      disabled={!isEditable}
-                      value={zona}
-                      onChange={(e) => setZona(e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2 disabled:bg-gray-100"
-                    >
-                      {zonas.map((z) => (
-                        <option key={z} value={z}>
-                          {z}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {capacidad === "otro" && (
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">
-                      Capacidad Personalizada
-                    </label>
+                  <div className="relative">
                     <input
-                      disabled={!isEditable}
-                      type="number"
-                      value={otroValor}
-                      placeholder="Ej. 12"
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setOtroValor(isNaN(val) ? "" : val);
-                      }}
-                      className="w-full border rounded-lg px-3 py-2 disabled:bg-gray-100"
+                      disabled={true}
+                      value={nombre}
+                      className="w-full bg-gray-50 text-gray-600 font-semibold border border-gray-200 rounded-xl px-4 py-3 focus:outline-none cursor-not-allowed select-none"
                     />
                   </div>
-                )}
+                </div>
 
-                {/* Footer de Edición */}
-                <div className="pt-6 border-t border-gray-100 mt-auto">
-                  {isEditable ? (
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <button
-                          type="button"
-                          onClick={onClose}
-                          className="text-gray-500 text-base font-medium hover:text-gray-700 underline decoration-gray-300 underline-offset-4 transition-colors cursor-pointer"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Capacidad */}
+                  <div>
+                    <label className="block text-base font-medium text-gray-600 mb-2">
+                      Capacidad
+                    </label>
+                    <div className="relative">
+                      <select
+                        disabled={!isEditable}
+                        value={capacidad}
+                        onChange={(e) =>
+                          setCapacidad(
+                            e.target.value === "otro"
+                              ? "otro"
+                              : Number(e.target.value)
+                          )
+                        }
+                        className="w-full appearance-none bg-white border border-gray-300 text-gray-600 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 font-medium cursor-pointer"
+                      >
+                        {predefined.map((n) => (
+                          <option key={n} value={n}>
+                            {n} personas
+                          </option>
+                        ))}
+                        <option value="otro">Personalizado...</option>
+                      </select>
+                      {/* Icono de flecha custom */}
+                      <div className="absolute right-4 top-3.5 pointer-events-none text-gray-600">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
-                          Desactivar Mesa
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={requestDelete}
-                          disabled={loading}
-                          className="px-4 py-2 text-red-600 bg-red-50 border border-transparent rounded-lg font-medium hover:bg-red-100 hover:border-red-200 transition-all cursor-pointer"
-                        >
-                          Eliminar
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleSave}
-                          disabled={loading}
-                          className="px-6 py-2 text-white bg-[#FA9623] rounded-lg font-bold shadow-md hover:bg-[#e88b1f] hover:shadow-lg transform active:scale-95 transition-all cursor-pointer"
-                        >
-                          Guardar
-                        </button>
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex justify-end"></div>
-                  )}
+                  </div>
+
+                  {/* Zona */}
+                  <div>
+                    <label className="block text-base font-semibold text-gray-600 mb-2 ml-1">
+                      Zona Asignada
+                    </label>
+                    <div className="relative">
+                      <select
+                        disabled={!isEditable}
+                        value={zonaId ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setZonaId(val === "" ? null : Number(val));
+                        }}
+                        className="w-full appearance-none bg-white border border-gray-300 text-gray-700 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all disabled:bg-gray-50 disabled:text-gray-400 font-medium"
+                      >
+                        {/* 👇 APLICAMOS EL ORDENAMIENTO AQUÍ MISMO 👇 */}
+                        {[...zonas]
+                          .sort((a, b) => {
+                            const nA = a.nombre.toLowerCase();
+                            const nB = b.nombre.toLowerCase();
+                            if (nA === "sin zona") return -1;
+                            if (nB === "sin zona") return 1;
+                            return 0;
+                          })
+                          .map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.nombre}
+                            </option>
+                          ))}
+                      </select>
+                      <div className="absolute right-4 top-3.5 pointer-events-none text-gray-600">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m6 9 6 6 6-6" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Input condicional para 'otro' */}
+                {capacidad === "otro" && (
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200 bg-orange-50/50 p-4 rounded-xl border border-orange-100">
+                    <label className="block text-sm font-bold text-orange-700 mb-2 ml-1">
+                      Capacidad Manual (Máx 32)
+                    </label>
+                    <input
+                      type="number"
+                      disabled={!isEditable}
+                      className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-gray-800 font-bold focus:ring-4 focus:ring-orange-100 focus:border-orange-400 outline-none transition-all placeholder:font-normal"
+                      placeholder="Ej. 15"
+                      value={otroValor}
+                      min={1}
+                      max={32}
+                      onKeyDown={(e) =>
+                        ["e", "E", "-", "+", "."].includes(e.key) &&
+                        e.preventDefault()
+                      }
+                      onChange={(e) => {
+                        const valStr = e.target.value;
+                        if (valStr === "") {
+                          setOtroValor("");
+                          return;
+                        }
+                        let val = parseInt(valStr, 10);
+                        if (isNaN(val)) return;
+                        if (val > 32) val = 32;
+                        if (val < 1) val = 1;
+                        setOtroValor(val);
+                      }}
+                      autoFocus
+                    />
+                    <p className="text-sm text-orange-600 mt-2 ml-1">
+                      Ingresa un número entre 1 y 32 personas.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* --- FOOTER DE ACCIONES --- */}
+              <div className="mt-auto pt-6 border-t border-gray-100">
+                {isEditable ? (
+                  <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                    {/* Botón de eliminar (Izquierda para seguridad) */}
+                    <button
+                      type="button"
+                      onClick={requestDelete}
+                      disabled={loading}
+                      className="group flex items-center justify-center gap-2 px-4 py-3 text-red-600 bg-white border border-red-100 hover:bg-red-50 hover:border-red-200 rounded-xl font-semibold cursor-pointer"
+                    >
+                      <Trash2 size={22} />
+                      <span className="sm:hidden">Eliminar Mesa</span>
+                    </button>
+
+                    {/* Grupo de acciones (Derecha) */}
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      {/* --- BOTÓN DINÁMICO (DESACTIVAR vs REACTIVAR) --- */}
+                      {isInactive ? (
+                        // ESTADO: REACTIVAR
+                        <button
+                          type="button"
+                          onClick={handleReactivar}
+                          disabled={loading}
+                          className="flex-1 sm:flex-none px-5 py-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>Habilitar Mesa</span>
+                        </button>
+                      ) : (
+                        // ESTADO: DESACTIVAR
+                        <button
+                          type="button"
+                          onClick={handleDesactivar}
+                          disabled={loading}
+                          className="flex-1 sm:flex-none px-5 py-3 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <span>Desactivar</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="flex-1 sm:flex-none px-6 py-3 bg-[#FA9623] hover:bg-[#e68a1f] text-white rounded-xl font-bold hover:shadow-orange-300 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span>Guardar</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                      Cerrar Panel
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
 
+        {/* 👇👇👇 ESTO ES LO QUE TE FALTABA AGREGAR 👇👇👇 */}
         {/* MICRO-MODAL DE CONFIRMACIÓN */}
         {showDeleteConfirm && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[2px] p-6 animate-in fade-in duration-200">
-            <div className="bg-white p-6 rounded-2xl shadow-2xl border border-red-100 w-full max-w-sm animate-in zoom-in-95 duration-200">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[1px] p-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-xl border border-red-100 w-full max-w-sm animate-in zoom-in-95 duration-200">
               <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle size={24} />
-                </div>
-
                 <h4 className="text-xl font-bold text-gray-900 mb-2">
                   ¿Eliminar Mesa?
                 </h4>
 
-                <p className="text-sm text-gray-500 mb-6">
+                <p className="text-base text-gray-500 mb-6">
                   Estás a punto de eliminar <strong>{localMesa.nombre}</strong>.
                   Esta acción es permanente y no se puede deshacer.
                 </p>
@@ -499,15 +669,89 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
                 <div className="flex gap-3 w-full">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors"
+                    className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 shadow-lg transition-transform active:scale-95"
+                    className="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 active:scale-95 cursor-pointer"
                   >
                     Sí, Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* 👆👆👆 FIN DE LO QUE FALTABA 👆👆👆 */}
+
+        {/* ... (Tu código existente de showDeleteConfirm) ... */}
+
+        {/* 👇👇👇 NUEVO MODAL DE DESACTIVAR 👇👇👇 */}
+        {showDisableConfirm && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[1px] p-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">
+                  ¿Desactivar Mesa?
+                </h4>
+
+                <p className="text-base text-gray-500 mb-6">
+                  La mesa <strong>{localMesa.nombre}</strong> dejará de estar
+                  disponible para asignar clientes, pero no se eliminará.
+                </p>
+
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setShowDisableConfirm(false)}
+                    className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmDisable}
+                    disabled={loading}
+                    className="flex-1 py-2.5 bg-gray-800 text-white rounded-xl font-semibold hover:bg-gray-900 shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? "..." : "Sí, Desactivar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* 👆👆👆 FIN DEL NUEVO MODAL 👆👆👆 */}
+
+        {/* ... (Tus otros modales de confirmación) ... */}
+
+        {/* 👇👇👇 NUEVO MODAL DE HABILITAR 👇👇👇 */}
+        {showEnableConfirm && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[1px] p-6 animate-in fade-in duration-200">
+            <div className="bg-white p-6 rounded-2xl shadow-2xl border border-emerald-100 w-full max-w-sm animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center">
+                <h4 className="text-xl font-bold text-gray-900 mb-2">
+                  ¿Habilitar Mesa?
+                </h4>
+
+                <p className="text-base text-gray-500 mb-6">
+                  La mesa <strong>{localMesa.nombre}</strong> volverá a estar
+                  disponible como "Libre" para recibir clientes.
+                </p>
+
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => setShowEnableConfirm(false)}
+                    className="flex-1 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmReactivar}
+                    disabled={loading}
+                    className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? "..." : "Sí, Habilitar"}
                   </button>
                 </div>
               </div>

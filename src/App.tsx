@@ -10,6 +10,7 @@ import MesasPage from "./pages/MesasPage";
 import LoginPage from "./pages/Login";
 import OrdersPage from "./pages/OrdersPage";
 import Layout from "./components/Layout"; // 👈 1. Asegúrate de importar tu Layout
+import { MesasProvider } from "./context/MesasContext";
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -38,7 +39,9 @@ function AppRoutes() {
           path="/mesas"
           element={
             <Layout>
-              <MesasPage />
+              <MesasProvider>
+                <MesasPage />
+              </MesasProvider>
             </Layout>
           }
         />

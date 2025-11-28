@@ -1,10 +1,11 @@
 // src/components/mesas/MesaCard.tsx
 import React from "react";
 import { Mesa } from "../../types/mesa";
-import { Clock, DollarSign, AlertCircle } from "lucide-react"; // Asegúrate de tener lucide-react instalado
+import { Clock, DollarSign, AlertCircle, Ban } from "lucide-react"; // ✅ Agregamos Ban
 
 interface Props {
   mesa: Mesa;
+  zonaDeshabilitada?: boolean; // 👈 AGREGA ESTA LÍNEA (el ? la hace opcional)
 }
 
 const formatCurrency = (n?: number) =>
@@ -16,9 +17,8 @@ const formatCurrency = (n?: number) =>
         minimumFractionDigits: 2,
       });
 
-export const MesaCard: React.FC<Props> = ({ mesa }) => {
+export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
   // --- LÓGICA DE COLORES MODERNOS (Soft UI) ---
-  // Usamos fondos suaves (bg-X-50 o 100) y bordes/textos oscuros
   const estadoStyles: Record<
     string,
     { border: string; bg: string; text: string; ring: string }
@@ -47,15 +47,38 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
       text: "text-purple-600",
       ring: "ring-purple-100",
     },
+    ACTIVA: {
+      border: "border-green-300",
+      bg: "bg-green-100",
+      text: "text-green-600",
+      ring: "ring-green-100",
+    },
+    // ✅ Estilo específico para INACTIVA (Gris y apagado)
+    INACTIVA: {
+      border: "border-gray-200",
+      bg: "bg-gray-50",
+      text: "text-gray-400",
+      ring: "ring-gray-100",
+    },
+    // Mantenemos DESACTIVADA por si acaso tienes datos viejos
     DESACTIVADA: {
-      border: "border-gray-300",
-      bg: "bg-gray-100",
-      text: "text-gray-600",
+      border: "border-gray-200",
+      bg: "bg-gray-50",
+      text: "text-gray-400",
       ring: "ring-gray-100",
     },
   };
 
+  // --- 2. CÁLCULOS DE ESTADO ---
   const isSecondaryGrouped = mesa.grupo && !mesa.principal;
+
+  // La mesa está visualmente deshabilitada si:
+  // A) La Zona entera está cerrada OR
+  // B) La mesa individual está Inactiva/Desactivada
+  const isVisuallyDisabled =
+    zonaDeshabilitada ||
+    mesa.estado === "INACTIVA" ||
+    mesa.estado === "DESACTIVADA";
 
   const style = isSecondaryGrouped
     ? {
@@ -83,13 +106,13 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
 
   // Badge del Estado (Pill shape)
   const EstadoBadge = () => {
-    // Colores específicos para el badge pequeño
     const badgeColors: Record<string, string> = {
       LIBRE: "bg-[#22C55E] text-[#FFFFFF]",
       OCUPADA: "bg-[#EF4444] text-[#FFFFFF]",
       ESPERANDO: "bg-[#F59E0B] text-[#FFFFFF]",
       AGRUPADA: "bg-[#A855F7] text-[#FFFFFF]",
-      DESACTIVADA: "bg-gray-100 text-gray-500",
+      INACTIVA: "bg-gray-200 text-gray-500", // Gris oscuro para badge
+      DESACTIVADA: "bg-gray-200 text-gray-500",
     };
     const colorClass = badgeColors[mesa.estado] || "bg-gray-100 text-gray-600";
 
@@ -106,12 +129,15 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
     <div
       className={`relative rounded-2xl p-5 shadow-sm cursor-pointer transition-all duration-200 
         border ${style.border} ${style.bg} 
-        hover:shadow-md hover:-translate-y-1 hover:border-opacity-100
-        ${mesa.estado === "DESACTIVADA" ? "opacity-60 grayscale" : ""}
+        ${
+          isVisuallyDisabled
+            ? "opacity-60 grayscale pointer-events-none" // Estilo apagado
+            : "hover:shadow-md hover:-translate-y-1 hover:border-opacity-100" // Estilo interactivo
+        } 
       `}
       style={{ minHeight: "130px" }}
     >
-      {/* Badge grupo flotante */}
+      {/* 1. Badge de Grupo (Flotante) */}
       {mesa.grupo && (
         <div className="absolute -top-2 -left-2 z-10">
           <span className="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-sm shadow-purple-200">
@@ -120,11 +146,13 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
         </div>
       )}
 
-      {/* --- HEADER: Nombre y Estado --- */}
+      {/* 2. HEADER: Nombre y Badge de Estado */}
       <div className="flex items-start justify-between mb-4">
         <h3
           className={`text-xl font-bold ${
-            isSecondaryGrouped ? "text-gray-400" : "text-gray-800"
+            isSecondaryGrouped || isVisuallyDisabled
+              ? "text-gray-400"
+              : "text-gray-800"
           }`}
         >
           {mesa.nombre}
@@ -132,8 +160,17 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
         {!isSecondaryGrouped && <EstadoBadge />}
       </div>
 
-      {/* --- BODY: Grid de 2 columnas (Tiempo y Dinero) --- */}
-      {mesa.estado !== "LIBRE" && mesa.estado !== "DESACTIVADA" ? (
+      {/* 3. BODY: Lógica Condicional de Contenido */}
+
+      {/* CASO A: Zona Cerrada o Mesa Inactiva */}
+      {isVisuallyDisabled ? (
+        <div className="h-[62px] flex flex-col items-center justify-center text-gray-500 bg-gray-100/50 rounded-lg border border-gray-200 border-dashed mb-2">
+          <div className="flex items-center gap-2 text-base font-medium">
+            <span>{zonaDeshabilitada ? "Zona Cerrada" : "No Disponible"}</span>
+          </div>
+        </div>
+      ) : mesa.estado !== "LIBRE" ? (
+        // CASO B: Mesa Ocupada/Esperando (Muestra Tiempo y Dinero)
         <div className="grid grid-cols-2 gap-4 mb-2">
           {/* Columna Tiempo */}
           <div className="flex flex-col items-start justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-100/50">
@@ -165,17 +202,17 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
           </div>
         </div>
       ) : (
-        // Estado vacío elegante para mesas libres
-        <div className="h-[62px] flex items-center justify-center text-gray-500 text-base font-medium">
+        // CASO C: Mesa Libre
+        <div className="h-[62px] flex items-center justify-center text-gray-400 text-base font-medium mb-2">
           Disponible
         </div>
       )}
 
-      {/* --- FOOTER: Alertas/Capacidad y Zona --- */}
+      {/* 4. FOOTER: Alertas y Nombre de Zona */}
       <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between">
-        {/* Izquierda: Alertas o Capacidad (Para que no se vea vacío) */}
+        {/* Izquierda: Alertas */}
         <div className="flex items-center gap-2">
-          {alertasActivas > 0 && (
+          {alertasActivas > 0 && !isVisuallyDisabled && (
             <div className="flex items-center gap-1 text-rose-600 bg-rose-50 px-2 py-1 rounded text-[14px] font-bold animate-pulse">
               <AlertCircle size={12} />
               <span>
@@ -184,9 +221,10 @@ export const MesaCard: React.FC<Props> = ({ mesa }) => {
             </div>
           )}
         </div>
-        {/* Derecha: Zona */}
-        <div className="flex items-center gap-1 text-base font-medium text-gray-500">
-          <span className="truncate max-w-32">{mesa.zona || "Sin zona"}</span>
+
+        {/* Derecha: Nombre de Zona */}
+        <div className="flex items-center gap-1 text-base font-medium text-gray-400">
+          <span>{mesa.zona || "Sin zona"}</span>
         </div>
       </div>
     </div>

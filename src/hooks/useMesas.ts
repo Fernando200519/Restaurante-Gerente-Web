@@ -1,28 +1,29 @@
 // src/hooks/useMesas.ts
-import { useEffect, useState } from "react";
-import { getMesas } from "../api/mesasApi";
-import { Mesa } from "../types/mesa";
+import { useMesasContext } from "../context/MesasContext";
 
 export const useMesas = () => {
-  const [mesas, setMesas] = useState<Mesa[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const ctx = useMesasContext();
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const data = await getMesas();
-        if (mounted) setMesas(data);
-      } catch (err) {
-        console.error("Error cargando mesas", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  return {
+    // Estados
+    mesas: ctx.mesas,
+    zonas: ctx.zonas,
+    loading: ctx.loading,
 
-  return { mesas, loading, setMesas };
+    // Acciones Mesas
+    crearMesa: ctx.crearMesa,
+    actualizarMesa: ctx.actualizarMesa,
+    eliminarMesas: ctx.eliminarMesas,
+    habilitarMesa: ctx.habilitarMesa,
+    desactivarMesa: ctx.desactivarMesa,
+
+    // Acciones Zonas
+    crearZona: ctx.crearZona,
+    actualizarZona: ctx.actualizarZona,
+    eliminarZona: ctx.eliminarZona,
+    eliminarZonaConMesas: ctx.eliminarZonaConMesas,
+    toggleEstadoZona: ctx.toggleEstadoZona, // 👈 Agregamos el toggle aquí
+    moverMesasDeZonaContext: ctx.moverMesasDeZonaContext,
+    migrarMesasNuevaZonaContext: ctx.migrarMesasNuevaZonaContext,
+  };
 };

@@ -4,7 +4,8 @@ import { saveToken, removeToken, getToken } from "../utils/storage";
 
 interface AuthContextType {
   token: string | null;
-  userId: number | null;
+  role: string | null;
+  estado: string | null;
   isAuthenticated: boolean;
   loginUser: (data: LoginResponse) => void;
   logoutUser: () => void;
@@ -13,24 +14,27 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // ⬇️ CARGAR TOKEN DESDE LOCALSTORAGE
   const [token, setToken] = useState<string | null>(() => getToken());
 
-  const [userId, setUserId] = useState<number | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [estado, setEstado] = useState<string | null>(null);
 
   const loginUser = (data: LoginResponse) => {
-    const jwt = data.token.result;
-    const id = data.token.id;
+    const jwt = data.token;
+    const rol = data.rol ?? null;
+    const estadoResp = data.estado ?? null;
 
     setToken(jwt);
-    setUserId(id);
+    setRole(rol);
+    setEstado(estadoResp);
 
     saveToken(jwt);
   };
 
   const logoutUser = () => {
     setToken(null);
-    setUserId(null);
+    setRole(null);
+    setEstado(null);
     removeToken();
   };
 
@@ -38,7 +42,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         token,
-        userId,
+        role,
+        estado,
         isAuthenticated: !!token,
         loginUser,
         logoutUser,
