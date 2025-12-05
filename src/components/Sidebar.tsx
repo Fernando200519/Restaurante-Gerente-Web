@@ -5,9 +5,11 @@ const items = [
   { to: "/mesas", label: "Mesas", icon: "/sidebar/table.svg" },
   { to: "/ordenes", label: "Órdenes", icon: "/sidebar/orders.svg" },
   {
-    to: "/empleados",
+    // 🔴 CORRECCIÓN AQUÍ: Cambiamos "/empleados" por "/employees"
+    // para que coincida con lo que definimos en App.tsx
+    to: "/employees",
     label: "Empleados",
-    icon: "/sidebar/employes.svg",
+    icon: "/sidebar/employees.svg",
   },
   { to: "/menu", label: "Menú", icon: "/sidebar/menu.svg" },
   { to: "/ventas", label: "Ventas", icon: "/sidebar/sales.svg" },

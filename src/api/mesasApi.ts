@@ -1,22 +1,29 @@
 import { Mesa, Zona } from "../types/mesa";
 import { API_URL } from "../config";
+import { buildFetchHeaders } from "./config";
 
 interface MesaBackend {
   id: number;
   nombre?: string;
-  capacidad: number;
-  zonaId: number | null;
+  capacidad?: number;
+  zonaId?: number | null;
   estadoMesa?: string;
   estado?: string;
   updatedAt?: string;
+  // Nuevos campos del backend
+  orderId?: number | null;
+  nombreZona?: string;
+  totalCuentaActiva?: number | null;
+  ordenFechaHoraInicio?: string | null;
 }
 
 interface FormDataResponse {
   zonas: Zona[];
 }
 
-// --- CORRECCIÓN EN ADAPT MESA (Visual) ---
-const adaptMesa = (m: any): Mesa => {
+// --- MAPEO CORRECTED (Backend → Frontend) ---
+const adaptMesa = (m: MesaBackend): Mesa => {
+  // 1. MAPEAR ESTADO: "Ocupada" -> "OCUPADA", "Libre" -> "LIBRE"
   const rawEstado = m.estado || m.estadoMesa || "LIBRE";
   let estadoNormalizado = String(rawEstado).toUpperCase();
   if (estadoNormalizado === "ACTIVA") estadoNormalizado = "LIBRE";
@@ -35,25 +42,39 @@ const adaptMesa = (m: any): Mesa => {
     estadosPermitidos.includes(estadoNormalizado) ? estadoNormalizado : "LIBRE"
   ) as Mesa["estado"];
 
-  // ✅ AQUÍ ESTÁ EL ARREGLO VISUAL:
-  // Si zonaId es null, forzamos el texto "Sin Zona".
-  const nombreZona =
-    m.zonaId === null ? "Sin Zona" : m.zona?.nombre || `Zona ${m.zonaId}`;
+  // 2. MAPEAR ZONA: nombreZona viene como string desde backend
+  const nombreZonaFinal =
+    m.nombreZona && m.nombreZona.trim() ? m.nombreZona : "Sin Zona";
+
+  // 3. CONSTRUIR ORDEN (si existe orderId)
+  let ordenFinal: any = null;
+  if (m.orderId && m.orderId > 0) {
+    ordenFinal = {
+      id: m.orderId,
+      total: m.totalCuentaActiva || 0,
+      montoTotal: m.totalCuentaActiva || 0,
+      totalAlertas: 0,
+      startedAt: m.ordenFechaHoraInicio || undefined,
+      platillos: [],
+    };
+  }
 
   return {
     id: m.id,
     nombre: m.nombre || `Mesa ${m.id}`,
-    capacidad: m.capacidad,
-    zonaId: m.zonaId,
-    zona: nombreZona, // 👈 Usamos la variable corregida
+    capacidad: m.capacidad || 2,
+    zonaId: m.zonaId ?? null,
+    zona: nombreZonaFinal,
     estado: estadoFinal,
     updatedAt: m.updatedAt,
-    orden: m.orden || null,
+    orden: ordenFinal,
   };
 };
 
 export const getMesas = async (): Promise<Mesa[]> => {
-  const res = await fetch(`${API_URL}/tables`);
+  const res = await fetch(`${API_URL}/tables`, {
+    headers: buildFetchHeaders(),
+  });
   if (!res.ok) throw new Error("Error obteniendo mesas");
   const data: MesaBackend[] = await res.json();
   return data.map(adaptMesa);
@@ -61,7 +82,9 @@ export const getMesas = async (): Promise<Mesa[]> => {
 
 export const getFormData = async (): Promise<FormDataResponse> => {
   try {
-    const response = await fetch(`${API_URL}/tables/form-data`);
+    const response = await fetch(`${API_URL}/tables/form-data`, {
+      headers: buildFetchHeaders(),
+    });
     if (!response.ok) throw new Error("Error cargando configuración");
     return await response.json();
   } catch (error) {
@@ -77,7 +100,7 @@ export const addMesa = async (data: {
 }): Promise<Mesa> => {
   const res = await fetch(`${API_URL}/tables`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -108,7 +131,7 @@ export const editMesa = async (
 
   const res = await fetch(`${API_URL}/tables/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
     body: JSON.stringify(bodyData),
   });
 
@@ -119,7 +142,7 @@ export const deleteMesas = async (ids: number[]): Promise<void> => {
   const promises = ids.map((id) =>
     fetch(`${API_URL}/tables/${id}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: buildFetchHeaders(),
     })
   );
 
@@ -129,8 +152,23 @@ export const deleteMesas = async (ids: number[]): Promise<void> => {
 };
 
 export const getMesaConOrdenes = async (id: number): Promise<Mesa | null> => {
-  const res = await fetch(`${API_URL}/tables/${id}`);
+  const res = await fetch(`${API_URL}/tables/${id}`, {
+    headers: buildFetchHeaders(),
+  });
   if (!res.ok) return null;
   const data = await res.json();
-  return adaptMesa(data);
+
+  // El backend a veces devuelve un array incluso en la ruta /tables/{id}.
+  // Manejar ambos casos: objeto o array.
+  let item: any = null;
+  if (Array.isArray(data)) {
+    // Intentar encontrar el elemento con el id correcto
+    item =
+      data.find((x: any) => Number(x.id) === Number(id)) || data[0] || null;
+  } else {
+    item = data;
+  }
+
+  if (!item) return null;
+  return adaptMesa(item);
 };

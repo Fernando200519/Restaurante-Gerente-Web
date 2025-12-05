@@ -1,8 +1,9 @@
 import { Zona } from "../types/mesa";
 import { API_URL } from "../config";
+import { buildFetchHeaders } from "./config";
 
 export const getZonas = async (): Promise<Zona[]> => {
-  const res = await fetch(`${API_URL}/zones`);
+  const res = await fetch(`${API_URL}/zones`, { headers: buildFetchHeaders() });
   if (!res.ok) throw new Error("Error obteniendo zonas");
 
   const data: Zona[] = await res.json();
@@ -13,7 +14,7 @@ export const getZonas = async (): Promise<Zona[]> => {
 export const addZona = async (nombre: string): Promise<Zona> => {
   const res = await fetch(`${API_URL}/zones`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
     body: JSON.stringify({ nombre }),
   });
 
@@ -29,7 +30,7 @@ export const editZona = async (
   // 👈 Ahora puede devolver null
   const res = await fetch(`${API_URL}/zones/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
     body: JSON.stringify({ nombre, estado }),
   });
 
@@ -46,7 +47,7 @@ export const editZona = async (
 export const deleteZona = async (id: number): Promise<void> => {
   const res = await fetch(`${API_URL}/zones/${id}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
   });
 
   if (!res.ok) throw new Error("Error borrando zona");
@@ -60,7 +61,7 @@ export const moverMesasDeZona = async (
     `${API_URL}/zones/${origenZonaId}/move-tables?targetZoneId=${destinoZonaId}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildFetchHeaders(),
     }
   );
   if (!res.ok) throw new Error("Error moviendo mesas a zona existente");
@@ -76,7 +77,7 @@ export const migrarMesasNuevaZona = async (
     )}`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildFetchHeaders(),
     }
   );
   if (!res.ok) throw new Error("Error migrando mesas a nueva zona");
@@ -85,7 +86,7 @@ export const migrarMesasNuevaZona = async (
 export const deleteZonaConMesas = async (id: number): Promise<void> => {
   const res = await fetch(`${API_URL}/zones/${id}/with-tables`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
+    headers: buildFetchHeaders(),
   });
   if (!res.ok) throw new Error("Error borrando zona y sus mesas");
 };

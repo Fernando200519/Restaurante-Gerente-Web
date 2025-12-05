@@ -31,7 +31,7 @@ interface MesasContextProps {
     estadoMesa?: string
   ) => Promise<void>;
   eliminarMesas: (ids: number[]) => Promise<void>;
-  crearZona: (nombre: string) => Promise<void>;
+  crearZona: (nombre: string) => Promise<Zona>;
   actualizarZona: (
     id: number,
     nombre: string,
@@ -87,7 +87,21 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   // -------------------------------
   const crearMesa = async (data: { capacidad: number; zonaId: number }) => {
     const nueva = await addMesa(data);
-    setMesas((prev) => [...prev, nueva]);
+
+    // Si el backend no incluye el nombre de la zona, intentamos rellenarlo
+    // usando la lista local de `zonas` para que los filtros/tabs muestren
+    // la mesa inmediatamente sin necesidad de recargar.
+    let zonaNombre = nueva.zona;
+    if (
+      (!zonaNombre || zonaNombre.trim() === "Sin Zona") &&
+      nueva.zonaId != null
+    ) {
+      const z = zonas.find((zz) => zz.id === nueva.zonaId);
+      if (z) zonaNombre = z.nombre;
+    }
+
+    const enriquecida: Mesa = { ...nueva, zona: zonaNombre ?? nueva.zona };
+    setMesas((prev) => [...prev, enriquecida]);
   };
 
   // -------------------------------
@@ -99,12 +113,73 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     zonaId: number | null,
     estadoMesa?: string
   ) => {
-    await editMesa(id, capacidad, zonaId, estadoMesa);
+    // Hacemos la operación de forma resiliente: intentamos el PATCH + GET,
+    // pero si algo falla no propagamos la excepción al UI — en su lugar
+    // aplicamos una actualización optimista para que el usuario vea el cambio
+    // y lanzamos un refresh en background si la lectura falla.
+    setLoading(true);
+    try {
+      await editMesa(id, capacidad, zonaId, estadoMesa);
 
-    const mesaActualizada = await getMesaConOrdenes(id);
-    if (!mesaActualizada) return;
+      const mesaActualizada = await getMesaConOrdenes(id);
+      if (mesaActualizada) {
+        let enriquecida = mesaActualizada;
+        if (
+          (enriquecida.zona == null ||
+            enriquecida.zona.trim() === "Sin Zona") &&
+          enriquecida.zonaId != null
+        ) {
+          const z = zonas.find((zz) => zz.id === enriquecida.zonaId);
+          if (z) enriquecida = { ...enriquecida, zona: z.nombre };
+        }
+        setMesas((prev) => prev.map((m) => (m.id === id ? enriquecida : m)));
+        return;
+      }
 
-    setMesas((prev) => prev.map((m) => (m.id === id ? mesaActualizada : m)));
+      // Si no obtuvimos la mesa del servidor, aplicamos update optimista
+      setMesas((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                capacidad: capacidad ?? m.capacidad,
+                zonaId: zonaId ?? m.zonaId,
+                zona:
+                  (zonaId != null &&
+                    zonas.find((z) => z.id === zonaId)?.nombre) ||
+                  m.zona,
+              }
+            : m
+        )
+      );
+
+      // Intentamos refrescar en segundo plano para sincronizar con servidor
+      refreshAll().catch((e) => console.error("refreshAll failed:", e));
+    } catch (error) {
+      console.error("Error actualizando mesa (silenciado):", error);
+
+      // Intento aplicar cambio optimista si es razonable
+      setMesas((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                capacidad: capacidad ?? m.capacidad,
+                zonaId: zonaId ?? m.zonaId,
+                zona:
+                  (zonaId != null &&
+                    zonas.find((z) => z.id === zonaId)?.nombre) ||
+                  m.zona,
+              }
+            : m
+        )
+      );
+
+      // También intentamos un refresh en background
+      refreshAll().catch((e) => console.error("refreshAll failed:", e));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // -------------------------------
@@ -154,9 +229,10 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   // -------------------------------
   // CRUD DE ZONAS
   // -------------------------------
-  const crearZona = async (nombre: string) => {
+  const crearZona = async (nombre: string): Promise<Zona> => {
     const nueva = await addZona(nombre);
     setZonas((prev) => [...prev, nueva]);
+    return nueva;
   };
 
   const actualizarZona = async (

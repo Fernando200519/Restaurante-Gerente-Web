@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { login } from "../../api/authApi";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginForm: React.FC = () => {
   const { loginUser } = useAuth();
+  const navigate = useNavigate();
 
   const [correo, setCorreo] = useState("");
   const [contraseña, setContraseña] = useState("");
@@ -19,8 +21,8 @@ const LoginForm: React.FC = () => {
     try {
       const data = await login({ correo, contraseña });
       loginUser(data);
-
-      window.location.href = "/mesas";
+      // Use react-router navigation to avoid full reload
+      navigate("/mesas");
     } catch (err) {
       setError("Credenciales incorrectas");
     }

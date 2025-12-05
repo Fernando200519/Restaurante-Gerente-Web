@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void;
 
   zonas: Zona[];
-  crearZona: (nombre: string) => Promise<void>;
+  crearZona: (nombre: string) => Promise<Zona>;
   actualizarZona: (
     id: number,
     nombre: string,
@@ -78,20 +78,26 @@ const ZonasModal: React.FC<Props> = ({
   }, [visible]);
 
   // --- PREPARAR LISTA VISUAL (ORDENADA) ---
+  // Mostramos "Sin zona" sólo si hay mesas sin zona (mesa.zona === 'Sin Zona' o zonaId === null o asignada a una zona llamada 'Sin Zona')
+  const sinZonaObj = zonas.find(
+    (z) => z.nombre.trim().toLowerCase() === "sin zona"
+  );
+  const hayMesasSinZonaLocal = mesas.some(
+    (m) =>
+      (m.zona && m.zona.trim().toLowerCase() === "sin zona") ||
+      m.zonaId === null ||
+      (sinZonaObj && m.zonaId === sinZonaObj.id)
+  );
+
   const uiZonas = [
-    "Todas", // 1. "Todas" siempre va primero fijo
-    ...[...zonas] // Creamos una copia para no mutar el original
-      .sort((a, b) => {
-        const nombreA = a.nombre.trim().toLowerCase();
-        const nombreB = b.nombre.trim().toLowerCase();
-
-        // 2. "Sin zona" va justo después de Todas
-        if (nombreA === "sin zona") return -1;
-        if (nombreB === "sin zona") return 1;
-
-        // 3. El resto mantiene su orden original (o usa return nombreA.localeCompare(nombreB) para alfabético)
-        return 0;
-      })
+    "Todas",
+    // Insertamos "Sin zona" solo si hay mesas huérfanas
+    ...(hayMesasSinZonaLocal
+      ? [sinZonaObj ? sinZonaObj.nombre : "Sin zona"]
+      : []),
+    // Añadimos el resto de zonas (excluyendo la llamada "Sin zona" para evitar duplicados)
+    ...[...zonas]
+      .filter((z) => z.nombre.trim().toLowerCase() !== "sin zona")
       .map((z) => z.nombre),
   ];
 
@@ -255,15 +261,22 @@ const ZonasModal: React.FC<Props> = ({
       // OPCIÓN C: Mover a "Sin Zona"
       else if (optionToUse === "MOVE_NULL") {
         // Buscar ID real de "Sin Zona" (insensible a mayúsculas)
-        const sinZonaReal = zonas.find(
+        let sinZonaReal = zonas.find(
           (z) => z.nombre.trim().toLowerCase() === "sin zona"
         );
 
+        // Si no existe, creamos la zona "Sin zona" y la usamos
         if (!sinZonaReal) {
-          alert(
-            "Error crítico: No encuentro la zona 'Sin Zona' en la base de datos."
-          );
-          return;
+          try {
+            const creada = await crearZona("Sin zona");
+            // actualizar referencia local
+            sinZonaReal = creada as Zona;
+            // actualizamos también el array local para que el UI se sincronice
+            // Nota: no tocamos el estado padre aquí; asumimos que el provider recargará si es necesario
+          } catch (e) {
+            console.error("No se pudo crear la zona 'Sin zona':", e);
+            throw e;
+          }
         }
 
         // Movemos las mesas una por una al ID de "Sin Zona"
@@ -271,7 +284,7 @@ const ZonasModal: React.FC<Props> = ({
 
         await Promise.all(
           mesasAMover.map((m) =>
-            actualizarMesa(m.id, m.capacidad, sinZonaReal.id)
+            actualizarMesa(m.id, m.capacidad, sinZonaReal!.id)
           )
         );
 

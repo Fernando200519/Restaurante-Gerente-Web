@@ -15,6 +15,15 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onClose,
   order,
 }) => {
+  // Manejo robusto del overflow del body: guardamos el valor previo y lo restauramos.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (isOpen) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !order) return null;
 
   // Calculamos el total sumando las duraciones que YA vienen en el historial
@@ -22,14 +31,6 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     (acc, step) => acc + step.duration,
     0
   );
-
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "auto";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

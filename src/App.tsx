@@ -1,3 +1,5 @@
+// src/App.tsx
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -5,12 +7,16 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
+
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import MesasPage from "./pages/MesasPage";
 import LoginPage from "./pages/Login";
 import OrdersPage from "./pages/OrdersPage";
-import Layout from "./components/Layout"; // 👈 1. Asegúrate de importar tu Layout
+import Layout from "./components/Layout";
 import { MesasProvider } from "./context/MesasContext";
+import Employees from "./pages/Employees";
+import Menu from "./pages/Menu";
+import Ventas from "./pages/Ventas";
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -33,8 +39,9 @@ function AppRoutes() {
           isAuthenticated ? <Navigate to="/mesas" replace /> : <LoginPage />
         }
       />
+
+      {/* Rutas protegidas */}
       <Route element={<ProtectedRoute />}>
-        {/* 👈 2. Aquí envuelves cada página con <Layout> */}
         <Route
           path="/mesas"
           element={
@@ -54,7 +61,34 @@ function AppRoutes() {
             </Layout>
           }
         />
-        {/* Aquí puedes agregar más rutas protegidas, ej: /cocina, /pedidos */}
+
+        {/* Employees */}
+        <Route
+          path="/employees"
+          element={
+            <Layout>
+              <Employees />
+            </Layout>
+          }
+        />
+
+        {/* Menú */}
+        <Route
+          path="/menu"
+          element={
+            <Layout>
+              <Menu />
+            </Layout>
+          }
+        />
+        <Route
+          path="/ventas"
+          element={
+            <Layout>
+              <Ventas />
+            </Layout>
+          }
+        />
       </Route>
 
       <Route
@@ -63,6 +97,8 @@ function AppRoutes() {
           <Navigate to={isAuthenticated ? "/mesas" : "/login"} replace />
         }
       />
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

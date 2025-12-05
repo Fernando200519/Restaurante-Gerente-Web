@@ -41,16 +41,28 @@ const Inner = () => {
     (z) => z.nombre.trim().toLowerCase() === "sin zona"
   );
 
-  // 2. Verificamos si hay mesas "huerfanas" (con el ID de Sin Zona o null)
+  // 2. Verificamos si hay mesas "huerfanas" (con el ID de Sin Zona, zona === 'Sin Zona' o null)
   const hayMesasSinZona = mesas.some(
-    (m) => m.zonaId === sinZonaObj?.id || m.zonaId === null
+    (m) =>
+      // Si el backend ya nos mandó el nombre de zona como 'Sin Zona'
+      (m.zona && m.zona.trim().toLowerCase() === "sin zona") ||
+      // O si la mesa tiene zonaId null
+      m.zonaId === null ||
+      // O si existe una zona con nombre 'Sin Zona' y la mesa tiene ese id
+      (sinZonaObj && m.zonaId === sinZonaObj.id)
   );
 
   // 3. Nombre exacto para usar en la UI (fallback a "Sin zona" si no ha cargado)
   const nombreSinZona = sinZonaObj?.nombre || "Sin zona";
 
-  const getNombreZona = (id: number | null) => {
-    return zonas.find((z) => z.id === id)?.nombre || "Cargando...";
+  // ✅ CORRECCIÓN: Ya no buscamos el nombre por ID
+  // El backend ya nos envía nombreZona en mesasApi.ts (adaptMesa)
+  // Solo usamos este para casos donde no existe el nombreZona
+  const getNombreZona = (mesaZona: string | undefined, id: number | null) => {
+    // 1. Si la mesa ya tiene nombreZona, usarlo directamente
+    if (mesaZona) return mesaZona;
+    // 2. Si no, buscar en el array (fallback)
+    return zonas.find((z) => z.id === id)?.nombre || "Sin Zona";
   };
 
   // ✅ CORRECCIÓN 1: Calculamos los IDs deshabilitados basándonos en el Backend
@@ -64,7 +76,7 @@ const Inner = () => {
     // A. Mapeamos mesas inyectando el nombre real
     let resultado = mesas.map((m) => ({
       ...m,
-      nombreZona: getNombreZona(m.zonaId),
+      nombreZona: getNombreZona(m.zona, m.zonaId),
     }));
 
     // B. Filtrar por Tab seleccionado
@@ -130,12 +142,14 @@ const Inner = () => {
       tabs.push(nombreSinZona);
     }
 
-    // C. Agregamos el resto de zonas (excluyendo "Sin Zona" para no duplicar)
+    // C. Agregar zonas normales (excluyendo Sin Zona SIEMPRE)
     zonas.forEach((z) => {
-      // Si no es la zona "Sin Zona", la agregamos
-      if (z.id !== sinZonaObj?.id) {
-        tabs.push(z.nombre);
-      }
+      const nombreLower = z.nombre.trim().toLowerCase();
+
+      // excluimos 100% la zona sin zona
+      if (nombreLower === "sin zona") return;
+
+      tabs.push(z.nombre);
     });
 
     return tabs;

@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Eye } from "lucide-react"; // Iconos para paginación y detalle
 import { Order, OrderStatus } from "../../types/order";
-import { INITIAL_ORDERS } from "../../api/orderApi";
 import { OrderDetailsModal } from "./OrdersDetailModal";
 
 interface OrdersTableProps {
@@ -163,11 +162,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
           <span className="font-bold text-gray-900">
             {Math.min(start + ROWS_PER_PAGE, orders.length)}
           </span>{" "}
-          de{" "}
-          <span className="font-bold text-gray-900">
-            {INITIAL_ORDERS.length}
-          </span>{" "}
-          resultados
+          de resultados
         </p>
 
         <div className="flex gap-2">

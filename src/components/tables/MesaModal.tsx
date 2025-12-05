@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Mesa, Platillo, Zona } from "../../types/mesa";
 import { useMesas } from "../../hooks/useMesas"; // ✅ Hook nuevo
+import { getOrders, getOrderById, OrderBackend } from "../../api/ordersApi";
 // Agregamos los iconos que faltaban en tu import
 import {
   AlertTriangle,
@@ -140,6 +141,9 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
   // 👇 NUEVO ESTADO
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [showEnableConfirm, setShowEnableConfirm] = useState(false);
+  // Estado local para la orden cargada desde /orders
+  const [orderBackend, setOrderBackend] = useState<OrderBackend | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(false);
 
   useEffect(() => {
     if (visible) document.body.style.overflow = "hidden";
@@ -173,6 +177,39 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
     setShowDeleteConfirm(false);
   }, [mesa]);
 
+  // Cargar la orden asociada cuando se abre el modal o cambia la mesa
+  useEffect(() => {
+    if (!visible || !localMesa) {
+      setOrderBackend(null);
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      setLoadingOrder(true);
+      try {
+        if (localMesa.orden?.id) {
+          const o = await getOrderById(localMesa.orden.id);
+          if (mounted) setOrderBackend(o);
+        } else {
+          // Fallback: obtener todas y buscar por mesaId
+          const all = await getOrders();
+          const found = all.find((x) => x.mesaId === localMesa.id) || null;
+          if (mounted) setOrderBackend(found);
+        }
+      } catch (e) {
+        console.error("Error cargando orden:", e);
+        if (mounted) setOrderBackend(null);
+      } finally {
+        if (mounted) setLoadingOrder(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [visible, localMesa]);
+
   if (!visible || !localMesa) return null;
 
   // --- 1. LÓGICA CORREGIDA DE ESTADOS ---
@@ -187,10 +224,15 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
 
   // Helper para mostrar el nombre de la zona en el Header
   // Nota: Si zonaId es null, devuelve "Sin Zona"
+  // Mostramos la zona actual considerando el valor seleccionado en el formulario
+  // (estado `zonaId`) para que el header refleje inmediatamente los cambios
+  // que el usuario hace antes de guardar.
+  const effectiveZonaId =
+    zonaId !== null && zonaId !== undefined ? zonaId : localMesa.zonaId;
   const nombreZonaActual =
-    localMesa.zonaId === null
+    effectiveZonaId === null
       ? "Sin Zona"
-      : zonas.find((z) => z.id === localMesa.zonaId)?.nombre || "Sin Zona";
+      : zonas.find((z) => z.id === effectiveZonaId)?.nombre || "Sin Zona";
 
   // --- GUARDAR EDICIÓN ---
   const handleSave = async () => {
@@ -275,12 +317,47 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, onClose, zonas = [] }) => {
   };
 
   // --- DATOS ADAPTADOS ---
-  const ordenActiva = localMesa.orden;
+  // Si tenemos datos desde /orders, priorizamos esos detalles
+  const ordenActiva =
+    orderBackend && orderBackend.detallesOrden
+      ? {
+          id: orderBackend.id,
+          total: orderBackend.detallesOrden.reduce(
+            (s, d) => s + (d.total || 0),
+            0
+          ),
+          totalAlertas: 0,
+          platillos: orderBackend.detallesOrden.map(
+            (d) =>
+              ({
+                id: d.id,
+                nombre: d.producto,
+                precio: d.total || 0,
+                estado: mapDetalleEstadoToPlatilloEstado(d.estado),
+                requiereAtencion: false,
+                tiempoRegistrado: d.fechaHoraInicioEstado || undefined,
+                comensal: d.comensal || undefined,
+              } as any)
+          ),
+        }
+      : localMesa.orden;
+
   const todosLosPlatillos =
-    ordenActiva?.platillos?.map((p) => ({
+    (ordenActiva?.platillos?.map((p) => ({
       ...p,
-      comensalNombre: "Comensal", // Ajustar según tu estructura real
-    })) || [];
+      comensalNombre: (p as any).comensal || "Comensal",
+    })) as any) || [];
+
+  function mapDetalleEstadoToPlatilloEstado(s: string | undefined) {
+    if (!s) return "TOMADO" as Platillo["estado"];
+    const lower = s.toLowerCase();
+    if (lower.includes("solicit")) return "TOMADO" as Platillo["estado"];
+    if (lower.includes("prepar")) return "EN_PREPARACION" as Platillo["estado"];
+    if (lower.includes("listo")) return "LISTO" as Platillo["estado"];
+    if (lower.includes("entreg")) return "ENTREGADO" as Platillo["estado"];
+    if (lower.includes("retras")) return "RETRASADO" as Platillo["estado"];
+    return "TOMADO" as Platillo["estado"];
+  }
 
   const minutosAbierta = ordenActiva
     ? Math.max(0, Math.floor(Math.random() * 60)) // Placeholder
