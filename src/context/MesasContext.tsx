@@ -35,14 +35,13 @@ interface MesasContextProps {
   actualizarZona: (
     id: number,
     nombre: string,
-    estado?: "Activa" | "Inactiva" // 👈 AGREGAR EL ? AQUÍ
+    estado?: "Activa" | "Inactiva"
   ) => Promise<void>;
   eliminarZona: (id: number) => Promise<void>;
-  // 👇 AGREGAR ESTA LÍNEA
   toggleEstadoZona: (zona: Zona) => Promise<void>;
   eliminarZonaConMesas: (id: number) => Promise<void>;
   desactivarMesa: (id: number) => Promise<void>;
-  habilitarMesa: (id: number) => Promise<void>; // 👈 NUEVA
+  habilitarMesa: (id: number) => Promise<void>;
   moverMesasDeZonaContext: (
     origenId: number,
     destinoId: number
@@ -58,22 +57,18 @@ const MesasContext = createContext<MesasContextProps | undefined>(undefined);
 export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [zonas, setZonas] = useState<Zona[]>([]);
-  const [loading, setLoading] = useState(true); // CARGA INICIAL UNIFICADA // -------------------------------
+  const [loading, setLoading] = useState(true);
 
-  // -------------------------------
   useEffect(() => {
     const inicializarDatos = async () => {
       try {
         setLoading(true);
-        // Promise.all dispara ambas peticiones en paralelo (más rápido)
-        // y espera a que AMBAS terminen
         await Promise.all([
           getMesas().then(setMesas),
           getZonas().then(setZonas),
         ]);
       } catch (error) {
         console.error("Error inicializando la aplicación:", error);
-        // Aquí podrías poner un estado de error global si quisieras
       } finally {
         setLoading(false);
       }
@@ -81,16 +76,9 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
     inicializarDatos();
   }, []);
-
-  // -------------------------------
-  // CREAR MESA
-  // -------------------------------
   const crearMesa = async (data: { capacidad: number; zonaId: number }) => {
     const nueva = await addMesa(data);
 
-    // Si el backend no incluye el nombre de la zona, intentamos rellenarlo
-    // usando la lista local de `zonas` para que los filtros/tabs muestren
-    // la mesa inmediatamente sin necesidad de recargar.
     let zonaNombre = nueva.zona;
     if (
       (!zonaNombre || zonaNombre.trim() === "Sin Zona") &&
@@ -103,20 +91,12 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     const enriquecida: Mesa = { ...nueva, zona: zonaNombre ?? nueva.zona };
     setMesas((prev) => [...prev, enriquecida]);
   };
-
-  // -------------------------------
-  // EDITAR MESA
-  // -------------------------------
   const actualizarMesa = async (
     id: number,
     capacidad: number,
     zonaId: number | null,
     estadoMesa?: string
   ) => {
-    // Hacemos la operación de forma resiliente: intentamos el PATCH + GET,
-    // pero si algo falla no propagamos la excepción al UI — en su lugar
-    // aplicamos una actualización optimista para que el usuario vea el cambio
-    // y lanzamos un refresh en background si la lectura falla.
     setLoading(true);
     try {
       await editMesa(id, capacidad, zonaId, estadoMesa);
@@ -136,29 +116,27 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Si no obtuvimos la mesa del servidor, aplicamos update optimista
       setMesas((prev) =>
-        prev.map((m) =>
-          m.id === id
-            ? {
-                ...m,
-                capacidad: capacidad ?? m.capacidad,
-                zonaId: zonaId ?? m.zonaId,
-                zona:
-                  (zonaId != null &&
-                    zonas.find((z) => z.id === zonaId)?.nombre) ||
-                  m.zona,
-              }
-            : m
-        )
+        prev.map((m) => {
+          if (m.id !== id) return m;
+          const zonaNombreCalculada =
+            zonaId === null
+              ? "Sin Zona"
+              : zonas.find((z) => z.id === zonaId)?.nombre || "Sin Zona";
+
+          return {
+            ...m,
+            capacidad: capacidad ?? m.capacidad,
+            zonaId: zonaId ?? m.zonaId,
+            zona: zonaNombreCalculada,
+          };
+        })
       );
 
-      // Intentamos refrescar en segundo plano para sincronizar con servidor
       refreshAll().catch((e) => console.error("refreshAll failed:", e));
     } catch (error) {
       console.error("Error actualizando mesa (silenciado):", error);
 
-      // Intento aplicar cambio optimista si es razonable
       setMesas((prev) =>
         prev.map((m) =>
           m.id === id
@@ -175,16 +153,12 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
         )
       );
 
-      // También intentamos un refresh en background
       refreshAll().catch((e) => console.error("refreshAll failed:", e));
     } finally {
       setLoading(false);
     }
   };
 
-  // -------------------------------
-  // ELIMINAR MESAS (varias)
-  // -------------------------------
   const eliminarMesas = async (ids: number[]) => {
     await deleteMesas(ids);
     setMesas((prev) => prev.filter((m) => !ids.includes(m.id)));
@@ -193,10 +167,8 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const habilitarMesa = async (id: number) => {
     setLoading(true);
     try {
-      // ⚠️ AL BACKEND: Enviamos "Activa"
       await editMesa(id, undefined, undefined, "Activa");
 
-      // ✅ AL FRONTEND: Usamos "LIBRE" (que es como tu front entiende "Activa")
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "LIBRE" } : m))
       );
@@ -211,10 +183,8 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const desactivarMesa = async (id: number) => {
     setLoading(true);
     try {
-      // ⚠️ AL BACKEND: Enviamos "Inactiva" (Tal cual lo pide la imagen)
       await editMesa(id, undefined, undefined, "Inactiva");
 
-      // ✅ AL FRONTEND: Mantenemos "INACTIVA" (Para que funcionen tus estilos visuales)
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "INACTIVA" } : m))
       );
@@ -226,9 +196,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // -------------------------------
-  // CRUD DE ZONAS
-  // -------------------------------
   const crearZona = async (nombre: string): Promise<Zona> => {
     const nueva = await addZona(nombre);
     setZonas((prev) => [...prev, nueva]);
@@ -240,11 +207,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     nombre: string,
     estado?: "Activa" | "Inactiva"
   ) => {
-    // ❌ 1. ELIMINAMOS setLoading(true) (Esto causaba el parpadeo)
-
     try {
-      // ✅ 2. ACTUALIZACIÓN OPTIMISTA (Primero actualizamos la UI)
-      // Actualizamos la pantalla ANTES de esperar al backend para que sea instantáneo
       setZonas((prev) =>
         prev.map((z) => {
           if (z.id !== id) return z;
@@ -256,19 +219,13 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
         })
       );
 
-      // ✅ 3. LLAMADA A LA API (En segundo plano)
       const zonaRespuesta = await editZona(id, nombre, estado);
-
-      // ✅ 4. RE-SINTONIZACIÓN (Opcional de seguridad)
-      // Si el backend devolvió el objeto completo actualizado, lo usamos para asegurar que tenemos los datos reales del servidor.
       if (zonaRespuesta) {
         setZonas((prev) => prev.map((z) => (z.id === id ? zonaRespuesta : z)));
       }
     } catch (error) {
       console.error(error);
-      // Aquí podrías poner un alert si falló
     }
-    // ❌ 5. ELIMINAMOS EL FINALLY Y setLoading(false)
   };
 
   const eliminarZona = async (id: number) => {
@@ -282,25 +239,16 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     setMesas((prev) => prev.filter((m) => m.zonaId !== id));
   };
 
-  // ✅ NUEVA FUNCIÓN: TOGGLE (CORREGIDA)
   const toggleEstadoZona = async (zona: Zona) => {
-    // 1. Calculamos el estado contrario
     const nuevoEstado = zona.estado === "Activa" ? "Inactiva" : "Activa";
 
     try {
-      // 2. Llamamos a la API
       const zonaRespuesta = await editZona(zona.id, zona.nombre, nuevoEstado);
 
-      // 3. Actualizamos el estado local
       setZonas((prev) =>
         prev.map((z) => {
-          // Si no es la zona que tocamos, la dejamos igual
           if (z.id !== zona.id) return z;
-
-          // CASO A: El backend devolvió la zona actualizada (Perfecto)
           if (zonaRespuesta) return zonaRespuesta;
-
-          // CASO B: El backend devolvió null (Actualizamos manualmente)
           return { ...z, estado: nuevoEstado };
         })
       );
@@ -309,7 +257,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // ✅ TU FUNCIÓN REFRESH (Cópiala aquí)
   const refreshAll = async () => {
     try {
       setLoading(true);
@@ -325,8 +272,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   };
-
-  // 2. Implementa las funciones en el Provider
   const moverMesasDeZonaContext = async (
     origenId: number,
     destinoId: number
@@ -334,7 +279,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       await moverMesasDeZona(origenId, destinoId);
-      // Recargamos todo para ver los cambios reflejados
       await refreshAll();
     } catch (e) {
       console.error(e);
@@ -375,7 +319,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
         actualizarZona,
         eliminarZona,
         eliminarZonaConMesas,
-        toggleEstadoZona, // 👈 AGREGAR AQUÍ
+        toggleEstadoZona,
         moverMesasDeZonaContext,
         migrarMesasNuevaZonaContext,
       }}

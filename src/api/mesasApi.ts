@@ -10,7 +10,6 @@ interface MesaBackend {
   estadoMesa?: string;
   estado?: string;
   updatedAt?: string;
-  // Nuevos campos del backend
   orderId?: number | null;
   nombreZona?: string;
   totalCuentaActiva?: number | null;
@@ -21,9 +20,7 @@ interface FormDataResponse {
   zonas: Zona[];
 }
 
-// --- MAPEO CORRECTED (Backend → Frontend) ---
 const adaptMesa = (m: MesaBackend): Mesa => {
-  // 1. MAPEAR ESTADO: "Ocupada" -> "OCUPADA", "Libre" -> "LIBRE"
   const rawEstado = m.estado || m.estadoMesa || "LIBRE";
   let estadoNormalizado = String(rawEstado).toUpperCase();
   if (estadoNormalizado === "ACTIVA") estadoNormalizado = "LIBRE";
@@ -42,12 +39,13 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     estadosPermitidos.includes(estadoNormalizado) ? estadoNormalizado : "LIBRE"
   ) as Mesa["estado"];
 
-  // 2. MAPEAR ZONA: nombreZona viene como string desde backend
   const nombreZonaFinal =
     m.nombreZona && m.nombreZona.trim() ? m.nombreZona : "Sin Zona";
 
-  // 3. CONSTRUIR ORDEN (si existe orderId)
+  const zonaIdFinal = m.zonaId ?? null;
+
   let ordenFinal: any = null;
+
   if (m.orderId && m.orderId > 0) {
     ordenFinal = {
       id: m.orderId,
@@ -63,8 +61,8 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     id: m.id,
     nombre: m.nombre || `Mesa ${m.id}`,
     capacidad: m.capacidad || 2,
-    zonaId: m.zonaId ?? null,
-    zona: nombreZonaFinal,
+    zonaId: zonaIdFinal,
+    zona: nombreZonaFinal, // Usa la variable con la lógica limpia
     estado: estadoFinal,
     updatedAt: m.updatedAt,
     orden: ordenFinal,
@@ -96,7 +94,6 @@ export const getFormData = async (): Promise<FormDataResponse> => {
 export const addMesa = async (data: {
   capacidad: number;
   zonaId: number;
-  // nombre: string; // Tu API POST actual no pedía nombre, pero si lo actualizan, descomenta esto
 }): Promise<Mesa> => {
   const res = await fetch(`${API_URL}/tables`, {
     method: "POST",
@@ -109,7 +106,6 @@ export const addMesa = async (data: {
   return adaptMesa(mesaBack);
 };
 
-// --- CORRECCIÓN EN EDIT MESA (Lógica) ---
 export const editMesa = async (
   id: number,
   capacidad?: number,
@@ -118,15 +114,11 @@ export const editMesa = async (
 ): Promise<void> => {
   const bodyData = {
     capacidad,
-    // ✅ ASEGURAMOS QUE NULL SE ENVÍE
-    // Si zonaId es null, se envía null. Si es undefined, se omite.
     zonaId,
     estado: estadoMesa,
     estadoMesa: estadoMesa,
   };
 
-  // 👇 DEBUG: Mira la consola. Si dice "zonaId": null, está funcionando.
-  // Si dice "zonaId" no aparece, es que llegó undefined.
   console.log("PATCH enviando:", bodyData);
 
   const res = await fetch(`${API_URL}/tables/${id}`, {
@@ -156,13 +148,17 @@ export const getMesaConOrdenes = async (id: number): Promise<Mesa | null> => {
     headers: buildFetchHeaders(),
   });
   if (!res.ok) return null;
-  const data = await res.json();
+  const text = await res.text();
+  if (!text || text.trim() === "") return null;
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
 
-  // El backend a veces devuelve un array incluso en la ruta /tables/{id}.
-  // Manejar ambos casos: objeto o array.
   let item: any = null;
   if (Array.isArray(data)) {
-    // Intentar encontrar el elemento con el id correcto
     item =
       data.find((x: any) => Number(x.id) === Number(id)) || data[0] || null;
   } else {

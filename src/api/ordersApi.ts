@@ -1,13 +1,29 @@
 import { API_URL } from "../config";
 import { buildFetchHeaders } from "./config";
 
+// El tipo 'PlatilloEstado' debe ser compatible con lo que envía el backend ("Solicitado")
+// y los otros estados que manejas. Si el backend envía un string simple,
+// debes permitirlo.
+export type PlatilloEstado =
+  | "Solicitado"
+  | "EN_PREPARACION"
+  | "LISTO"
+  | "SERVIR";
+
+// Interfaz para los detalles de la orden:
 export interface DetalleOrdenBackend {
   id: number;
-  producto: string;
-  estado: string;
-  fechaHoraInicioEstado?: string | null;
-  comensal?: string | null;
-  total?: number;
+
+  // CORRECCIÓN para manejar null/undefined:
+  producto?: string | null; // Puede ser string, null, o undefined
+  comensal?: string | null; // Puede ser string, null, o undefined
+  fechaHoraInicioEstado?: string | null; // Puede ser string, null, o undefined
+
+  cantidad?: number; // Asumiendo que es opcional/no existe en el payload
+  total: number;
+
+  // CORRECCIÓN para el estado (si el backend lo envía como string):
+  estado: PlatilloEstado;
 }
 
 export interface OrderBackend {
@@ -15,7 +31,7 @@ export interface OrderBackend {
   mesaId: number;
   estadoMesa: string;
   mesero?: string;
-  fechaHora?: string;
+  fechaHora?: string | null;
   totalComensales?: number;
   detallesOrden?: DetalleOrdenBackend[];
 }

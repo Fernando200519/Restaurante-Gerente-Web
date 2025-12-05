@@ -2,15 +2,12 @@
 import React, { useState, useMemo } from "react";
 import { MesasProvider } from "../context/MesasContext";
 import { useMesas } from "../hooks/useMesas";
-
-// Importamos los componentes ya adaptados a IDs
 import MesaFormModal from "../components/tables/MesaFormModal";
-import MesaModal from "../components/tables/MesaModal";
+import MesaModal from "../components/tables/mesa-modal/MesaModal";
 import { MesaCard } from "../components/tables/MesaCard";
 import ZonasModal from "../components/tables/ZonaModal";
 
 const Inner = () => {
-  // 1. Hook: Traemos datos y acciones del Backend
   const {
     mesas,
     zonas,
@@ -22,91 +19,71 @@ const Inner = () => {
     actualizarZona,
     eliminarZona,
     eliminarZonaConMesas,
-    toggleEstadoZona, // 👈 1. IMPORTANTE: Sácalo del hook aquí
+    toggleEstadoZona,
   } = useMesas();
 
-  // 2. Estados Locales de UI
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [detailMesaId, setDetailMesaId] = useState<number | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [zonasModalOpen, setZonasModalOpen] = useState(false);
 
-  // 3. Selección de Zonas
   const [zonaSeleccionadaNombre, setZonaSeleccionadaNombre] =
     useState<string>("Todas");
 
-  // --- LÓGICA VISUAL DE "SIN ZONA" ---
-  // 1. Buscamos el objeto real de la base de datos
   const sinZonaObj = zonas.find(
     (z) => z.nombre.trim().toLowerCase() === "sin zona"
   );
 
-  // 2. Verificamos si hay mesas "huerfanas" (con el ID de Sin Zona, zona === 'Sin Zona' o null)
+  // CORRECCIÓN: Ahora solo comprobamos si alguna mesa tiene el nombre de zona "Sin Zona".
+  // Este nombre se asigna en adaptMesa si la mesa no tiene zona.
   const hayMesasSinZona = mesas.some(
-    (m) =>
-      // Si el backend ya nos mandó el nombre de zona como 'Sin Zona'
-      (m.zona && m.zona.trim().toLowerCase() === "sin zona") ||
-      // O si la mesa tiene zonaId null
-      m.zonaId === null ||
-      // O si existe una zona con nombre 'Sin Zona' y la mesa tiene ese id
-      (sinZonaObj && m.zonaId === sinZonaObj.id)
+    (m) => m.zona && m.zona.trim().toLowerCase() === "sin zona"
   );
 
-  // 3. Nombre exacto para usar en la UI (fallback a "Sin zona" si no ha cargado)
-  const nombreSinZona = sinZonaObj?.nombre || "Sin zona";
+  const nombreSinZona = sinZonaObj?.nombre || "Sin Zona";
 
-  // ✅ CORRECCIÓN: Ya no buscamos el nombre por ID
-  // El backend ya nos envía nombreZona en mesasApi.ts (adaptMesa)
-  // Solo usamos este para casos donde no existe el nombreZona
   const getNombreZona = (mesaZona: string | undefined, id: number | null) => {
-    // 1. Si la mesa ya tiene nombreZona, usarlo directamente
-    if (mesaZona) return mesaZona;
-    // 2. Si no, buscar en el array (fallback)
-    return zonas.find((z) => z.id === id)?.nombre || "Sin Zona";
+    // Si el campo 'mesaZona' ya tiene un valor (que vino del backend via adaptMesa), lo usamos.
+    if (mesaZona && mesaZona.trim().toLowerCase() !== "sin zona") {
+      return mesaZona;
+    }
+
+    // Si zonaId es null o undefined, o la zona no se encuentra, usamos el nombre estandarizado 'Sin Zona'.
+    // Esto es un fallback, pero no debería activarse si el backend ya envió el nombre.
+    return zonas.find((z) => z.id === id)?.nombre || nombreSinZona;
   };
 
-  // ✅ CORRECCIÓN 1: Calculamos los IDs deshabilitados basándonos en el Backend
-  // (Esto reemplaza al useState anterior)
   const disabledZonesIds = useMemo(() => {
     return zonas.filter((z) => z.estado === "Inactiva").map((z) => z.id);
   }, [zonas]);
 
-  // 4. Filtrado y Ordenamiento
+  // -------------------------------------------------------------
+  // 🧹 CÓDIGO CORREGIDO: mesasFiltradas SIN LÓGICA ERRÓNEA
+  // -------------------------------------------------------------
   const mesasFiltradas = useMemo(() => {
-    // A. Mapeamos mesas inyectando el nombre real
     let resultado = mesas.map((m) => ({
       ...m,
       nombreZona: getNombreZona(m.zona, m.zonaId),
     }));
 
-    // B. Filtrar por Tab seleccionado
     if (zonaSeleccionadaNombre !== "Todas") {
       resultado = resultado.filter(
         (m) => m.nombreZona === zonaSeleccionadaNombre
       );
     } else {
-      // C. Lógica Especial para "Todas":
-
-      // ID real de la zona "Sin Zona" (si existe en la lista descargada)
-      // Asegúrate de usar el nombre exacto que viene del backend ("Sin Zona" o "Sin zona")
+      // Filtrar mesas inactivas SOLO cuando "Todas" está seleccionada
       const idSinZona = zonas.find(
         (z) => z.nombre === "Sin Zona" || z.nombre === "Sin zona"
       )?.id;
 
       resultado = resultado.filter((m) => {
-        // 1. Si coincide con el ID de "Sin Zona", la mostramos siempre
         if (idSinZona && m.zonaId === idSinZona) return true;
-
-        // 2. 🛡️ CORRECCIÓN DEL ERROR:
-        // Si el ID es null (datos viejos o error), retornamos true para no romper el filtro.
-        // Al hacer este if, TypeScript sabe que abajo m.zonaId ya solo puede ser number.
         if (m.zonaId === null) return true;
 
-        // 3. Ahora sí, filtramos las zonas deshabilitadas
         return !disabledZonesIds.includes(m.zonaId);
       });
     }
-    // D. Ordenamiento
+
     return resultado.sort((a, b) => {
       const alertA = a.orden?.totalAlertas || 0;
       const alertB = b.orden?.totalAlertas || 0;
@@ -117,8 +94,8 @@ const Inner = () => {
       return numA - numB;
     });
   }, [mesas, zonas, zonaSeleccionadaNombre, disabledZonesIds]);
+  // -------------------------------------------------------------
 
-  // 5. KPIs
   const total = mesasFiltradas.length;
   const libres = mesasFiltradas.filter((m) => m.estado === "LIBRE").length;
   const ocupadas = mesasFiltradas.filter((m) => m.estado === "OCUPADA").length;
@@ -132,40 +109,27 @@ const Inner = () => {
     setDetailVisible(true);
   };
 
-  // --- GENERAR TABS ---
   const nombresZonasTabs = useMemo(() => {
-    // A. Siempre empezamos con "Todas"
     const tabs = ["Todas"];
-
-    // B. Solo agregamos "Sin Zona" si tiene mesas
     if (hayMesasSinZona) {
       tabs.push(nombreSinZona);
     }
 
-    // C. Agregar zonas normales (excluyendo Sin Zona SIEMPRE)
     zonas.forEach((z) => {
       const nombreLower = z.nombre.trim().toLowerCase();
-
-      // excluimos 100% la zona sin zona
       if (nombreLower === "sin zona") return;
-
       tabs.push(z.nombre);
     });
 
     return tabs;
   }, [zonas, hayMesasSinZona, nombreSinZona, sinZonaObj]);
 
-  // --- LÓGICA KPIs ---
   const zonaActualObj = zonas.find((z) => z.nombre === zonaSeleccionadaNombre);
 
   const isZonaDeshabilitada = zonaActualObj
     ? disabledZonesIds.includes(zonaActualObj.id)
     : false;
 
-  // Condición:
-  // 1. No estar en "Sin Zona"
-  // 2. No estar en una zona deshabilitada
-  // 3. (Opcional) Si quieres ocultarlos en "Todas", agrega: && zonaSeleccionadaNombre !== "Todas"
   const showKpis =
     zonaSeleccionadaNombre !== nombreSinZona && !isZonaDeshabilitada;
 
@@ -206,17 +170,12 @@ const Inner = () => {
           {/* Lista de zonas (Tabs) */}
           <div className="flex flex-1 items-center gap-8 overflow-x-auto custom-scrollbar w-0 pr-4">
             {nombresZonasTabs.map((nombre) => {
-              // Buscar ID para checar si está deshabilitada
               const zonaObj = zonas.find((z) => z.nombre === nombre);
 
-              // "Todas" y "Sin Zona" nunca están deshabilitadas por ID
               const isDisabled = zonaObj
                 ? disabledZonesIds.includes(zonaObj.id)
                 : false;
               const isSelected = zonaSeleccionadaNombre === nombre;
-
-              // --- CAMBIO 2: Lógica de visualización para Deshabilitados ---
-              // Ya no hacemos "return null". Ahora aplicamos estilos condicionales.
 
               return (
                 <button
@@ -234,8 +193,6 @@ const Inner = () => {
                         : ""
                     } 
                   `}
-                  // Opcional: Si quieres que NO se pueda dar click a lo deshabilitado, agrega: disabled={isDisabled}
-                  // Pero tu requerimiento dice "hacerse más grises", usualmente se permite ver el historial.
                 >
                   {nombre}
                 </button>
@@ -281,9 +238,6 @@ const Inner = () => {
                 >
                   <MesaCard
                     mesa={{ ...mesa, zona: mesa.nombreZona }}
-                    // 👇 CORRECCIÓN AQUÍ:
-                    // Si zonaId existe (es número), revisamos si está en la lista.
-                    // Si es null, devolvemos false (no puede estar deshabilitada).
                     zonaDeshabilitada={
                       mesa.zonaId !== null
                         ? disabledZonesIds.includes(mesa.zonaId)
@@ -297,14 +251,11 @@ const Inner = () => {
         )}
       </div>
 
-      {/* --- MODALES CONECTADOS CORRECTAMENTE --- */}
-
       <MesaFormModal
         visible={addModalOpen}
         onClose={() => setAddModalOpen(false)}
-        zonas={zonas} // ✅ Pasamos OBJETOS
+        zonas={zonas}
         zonaDefaultId={
-          // Calculamos el ID basado en el nombre del Tab seleccionado
           zonaSeleccionadaNombre !== "Todas"
             ? zonas.find((z) => z.nombre === zonaSeleccionadaNombre)?.id
             : undefined
@@ -316,7 +267,7 @@ const Inner = () => {
         <MesaModal
           mesa={mesas.find((m) => m.id === detailMesaId) ?? null}
           visible={detailVisible}
-          zonas={zonas} // ✅ Pasamos OBJETOS
+          zonas={zonas}
           onClose={() => {
             setDetailVisible(false);
             setDetailMesaId(null);
@@ -332,14 +283,12 @@ const Inner = () => {
         actualizarZona={actualizarZona}
         eliminarZona={eliminarZona}
         eliminarZonaConMesas={eliminarZonaConMesas}
-        // 👈 2. PÁSALO AQUÍ
         toggleEstadoZona={toggleEstadoZona}
       />
     </div>
   );
 };
 
-// Componente simple para KPI
 const KpiCard = ({
   title,
   value,
