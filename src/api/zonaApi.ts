@@ -53,34 +53,38 @@ export const deleteZona = async (id: number): Promise<void> => {
   if (!res.ok) throw new Error("Error borrando zona");
 };
 
+// Mover mesas a una zona EXISTENTE
 export const moverMesasDeZona = async (
-  origenZonaId: number,
-  destinoZonaId: number
-): Promise<void> => {
+  idOrigen: number,
+  targetZoneId: number
+) => {
   const res = await fetch(
-    `${API_URL}/zones/${origenZonaId}/move-tables?targetZoneId=${destinoZonaId}`,
+    `${API_URL}/zones/${idOrigen}/move-tables?targetZoneId=${targetZoneId}`,
     {
       method: "POST",
       headers: buildFetchHeaders(),
     }
   );
-  if (!res.ok) throw new Error("Error moviendo mesas a zona existente");
+  if (!res.ok) throw new Error("Error al mover mesas");
+  return true;
 };
 
+// Migrar mesas a una NUEVA zona
 export const migrarMesasNuevaZona = async (
-  origenZonaId: number,
-  nombreNuevaZona: string
-): Promise<void> => {
+  idOrigen: number,
+  newZoneName: string
+) => {
   const res = await fetch(
-    `${API_URL}/zones/${origenZonaId}/migrate-tables?newZoneName=${encodeURIComponent(
-      nombreNuevaZona
+    `${API_URL}/zones/${idOrigen}/migrate-tables?newZoneName=${encodeURIComponent(
+      newZoneName
     )}`,
     {
       method: "POST",
       headers: buildFetchHeaders(),
     }
   );
-  if (!res.ok) throw new Error("Error migrando mesas a nueva zona");
+  if (!res.ok) throw new Error("Error al migrar mesas");
+  return true;
 };
 
 export const deleteZonaConMesas = async (id: number): Promise<void> => {

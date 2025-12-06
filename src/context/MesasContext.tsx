@@ -167,13 +167,21 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const habilitarMesa = async (id: number) => {
     setLoading(true);
     try {
-      await editMesa(id, undefined, undefined, "Activa");
-
+      // 1. Actualización Optimista (Para que se vea instantáneo)
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "LIBRE" } : m))
       );
+
+      // 2. CORRECCIÓN: Enviar "Libre" al backend (según tu Swagger UpdateTableDTO)
+      // Antes enviabas "Activa", lo cual el backend rechazaba silenciosamente.
+      await editMesa(id, undefined, undefined, "Libre");
+
+      // 3. Sincronizar para asegurar
+      await refreshAll();
     } catch (error) {
       console.error("Error al habilitar mesa:", error);
+      // Si falla, revertimos los cambios recargando
+      refreshAll();
       throw error;
     } finally {
       setLoading(false);
@@ -183,13 +191,19 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const desactivarMesa = async (id: number) => {
     setLoading(true);
     try {
-      await editMesa(id, undefined, undefined, "Inactiva");
-
+      // 1. Actualización Optimista
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "INACTIVA" } : m))
       );
+
+      // 2. Enviar "Inactiva" al backend
+      await editMesa(id, undefined, undefined, "Inactiva");
+
+      // 3. Sincronizar
+      await refreshAll();
     } catch (error) {
       console.error("Error al desactivar mesa:", error);
+      refreshAll();
       throw error;
     } finally {
       setLoading(false);
@@ -208,6 +222,9 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     estado?: "Activa" | "Inactiva"
   ) => {
     try {
+      const zonaObj = zonas.find((z) => z.id === id);
+      const nombreAnterior = zonaObj?.nombre;
+
       setZonas((prev) =>
         prev.map((z) => {
           if (z.id !== id) return z;
@@ -220,11 +237,27 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       );
 
       const zonaRespuesta = await editZona(id, nombre, estado);
+
       if (zonaRespuesta) {
         setZonas((prev) => prev.map((z) => (z.id === id ? zonaRespuesta : z)));
       }
+      if (nombreAnterior && nombreAnterior !== nombre) {
+        setMesas((prevMesas) =>
+          prevMesas.map((m) => {
+            if (m.zona === nombreAnterior) {
+              return { ...m, zona: nombre };
+            }
+            return m;
+          })
+        );
+      }
+
+      // Opcional: Si quieres estar 100% seguro de que el backend y frontend están sincronizados:
+      // await refreshAll();
     } catch (error) {
       console.error(error);
+      // Si falla, podrías recargar todo para deshacer el cambio optimista
+      // refreshAll();
     }
   };
 
@@ -233,27 +266,109 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     setZonas((prev) => prev.filter((z) => z.id !== id));
   };
 
+  // src/context/MesasContext.tsx
+
   const eliminarZonaConMesas = async (id: number) => {
-    await deleteZonaConMesas(id);
-    setZonas((prev) => prev.filter((z) => z.id !== id));
-    setMesas((prev) => prev.filter((m) => m.zonaId !== id));
+    setLoading(true);
+    try {
+      // 1. Identificar la zona y sus mesas
+      const zonaTarget = zonas.find((z) => z.id === id);
+      if (!zonaTarget) return;
+
+      const isSinZona = zonaTarget.nombre.trim().toLowerCase() === "sin zona";
+
+      // Buscamos las mesas que pertenecen a esta zona por nombre
+      const mesasAfectadas = mesas.filter((m) => m.zona === zonaTarget.nombre);
+      const idsMesas = mesasAfectadas.map((m) => m.id);
+
+      // 2. Actualización Optimista (Visual inmediata)
+      // A) Quitamos las mesas de la vista
+      setMesas((prev) => prev.filter((m) => !idsMesas.includes(m.id)));
+
+      // B) Quitamos la zona de la vista (SOLO SI NO ES "SIN ZONA")
+      if (!isSinZona) {
+        setZonas((prev) => prev.filter((z) => z.id !== id));
+      }
+
+      // 3. Peticiones al Backend
+      // A) Primero eliminamos las mesas (para evitar conflictos de FK si existieran)
+      if (idsMesas.length > 0) {
+        await deleteMesas(idsMesas);
+      }
+
+      // B) Luego eliminamos la zona (SOLO SI NO ES "SIN ZONA")
+      if (!isSinZona) {
+        await deleteZona(id);
+      }
+
+      // 4. Sincronización final
+      await refreshAll();
+    } catch (error) {
+      console.error("Error eliminando zona y mesas:", error);
+      refreshAll(); // Revertir si falla
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleEstadoZona = async (zona: Zona) => {
-    const nuevoEstado = zona.estado === "Activa" ? "Inactiva" : "Activa";
+    // Estado de la Zona (suele ser tipo oración: "Activa" / "Inactiva")
+    const nuevoEstadoZona = zona.estado === "Activa" ? "Inactiva" : "Activa";
+
+    // CORRECCIÓN AQUÍ:
+    // El estado de la Mesa debe ser MAYÚSCULAS para cumplir con la interfaz TypeScript
+    // Cambio "Inactiva" por "INACTIVA" y "Libre" por "LIBRE"
+    const nuevoEstadoMesa =
+      nuevoEstadoZona === "Inactiva" ? "INACTIVA" : "LIBRE";
 
     try {
-      const zonaRespuesta = await editZona(zona.id, zona.nombre, nuevoEstado);
+      // 1. ACTUALIZACIÓN OPTIMISTA (VISUAL INSTANTÁNEA)
 
+      // A) Actualizamos la Zona
       setZonas((prev) =>
         prev.map((z) => {
           if (z.id !== zona.id) return z;
-          if (zonaRespuesta) return zonaRespuesta;
-          return { ...z, estado: nuevoEstado };
+          return { ...z, estado: nuevoEstadoZona };
         })
       );
+
+      // B) Actualizamos las Mesas
+      setMesas((prev) =>
+        prev.map((m) => {
+          if (m.zona === zona.nombre) {
+            // Ahora sí asignamos el tipo correcto ("INACTIVA" o "LIBRE")
+            return { ...m, estado: nuevoEstadoMesa };
+          }
+          return m;
+        })
+      );
+
+      // -------------------------------------------------------------
+      // 2. PETICIONES AL SERVIDOR (EN SEGUNDO PLANO)
+      // -------------------------------------------------------------
+
+      // Actualizar Zona en Backend
+      await editZona(zona.id, zona.nombre, nuevoEstadoZona);
+
+      // Actualizar Mesas en Backend
+      const mesasAfectadas = mesas.filter((m) => m.zona === zona.nombre);
+
+      if (mesasAfectadas.length > 0) {
+        const promesasDeActualizacion = mesasAfectadas.map((m) =>
+          editMesa(m.id, undefined, undefined, nuevoEstadoMesa)
+        );
+        await Promise.all(promesasDeActualizacion);
+      }
+
+      // 3. Sincronización final silenciosa
+      // Opcional: Si quieres asegurar que todo esté bien, pero podrías omitirlo
+      // si confías en que el optimismo funcionó.
+      // Si decides dejarlo, asegúrate que refreshAll no active un loading spinner global.
+      await refreshAll();
     } catch (error) {
-      console.error("Error al cambiar estado de zona:", error);
+      console.error("Error al cambiar estado:", error);
+      // Si falla, revertimos recargando todo
+      refreshAll();
     }
   };
 
@@ -272,13 +387,20 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     }
   };
+  // Opción A: Mover a zona existente (incluye "Sin zona")
   const moverMesasDeZonaContext = async (
     origenId: number,
     destinoId: number
   ) => {
     setLoading(true);
     try {
+      // 1. Mover las mesas en el backend
       await moverMesasDeZona(origenId, destinoId);
+
+      // 2. Eliminar la zona vieja (ya que quedó vacía)
+      await deleteZona(origenId);
+
+      // 3. Refrescar todo
       await refreshAll();
     } catch (e) {
       console.error(e);
@@ -288,13 +410,20 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Opción B: Mover a nueva zona (Migración)
   const migrarMesasNuevaZonaContext = async (
     origenId: number,
     nuevoNombre: string
   ) => {
     setLoading(true);
     try {
+      // 1. Crear zona y mover mesas (Backend)
       await migrarMesasNuevaZona(origenId, nuevoNombre);
+
+      // 2. Eliminar la zona vieja
+      await deleteZona(origenId);
+
+      // 3. Refrescar todo
       await refreshAll();
     } catch (e) {
       console.error(e);

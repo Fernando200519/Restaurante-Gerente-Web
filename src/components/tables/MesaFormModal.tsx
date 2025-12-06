@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useMesas } from "../../hooks/useMesas"; // ✅ Usamos el Hook nuevo
 import { Zona } from "../../types/mesa";
+import { ChevronDown, MapPin, X } from "lucide-react";
 
 interface Props {
   visible: boolean;
@@ -37,6 +38,7 @@ const MesaFormModal: React.FC<Props> = ({
   const [zonaId, setZonaId] = useState<number | "">("");
 
   const [modeEdit, setModeEdit] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Bloquear scroll al abrir
   useEffect(() => {
@@ -166,27 +168,18 @@ const MesaFormModal: React.FC<Props> = ({
         onClick={onClose}
       />
 
-      {/* Modal Card */}
-      <div className="bg-white rounded-2xl shadow-2xl z-10 w-full max-w-md overflow-hidden transform transition-all scale-100">
-        {/* Header */}
-        <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+      {/* CORRECCIÓN 1: Quitamos 'overflow-hidden' para que el dropdown pueda salir.
+          Agregamos 'overflow-visible' explícitamente.
+      */}
+      <div className="bg-white rounded-2xl shadow-2xl z-10 w-full max-w-md overflow-visible transform transition-all scale-100 animate-in zoom-in-95 duration-200">
+        {/* CORRECCIÓN 2: Agregamos 'rounded-t-2xl' al header 
+            para mantener la estética sin usar overflow-hidden 
+        */}
+        <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             {modeEdit ? (
               <>
-                <svg
-                  className="w-5 h-5 text-orange-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  ></path>
-                </svg>
-                Editar Mesa
+                <span className="text-[#FA9623]">✏️</span> Editar Mesa
               </>
             ) : (
               <>Nueva Mesa</>
@@ -194,49 +187,36 @@ const MesaFormModal: React.FC<Props> = ({
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition cursor-pointer"
+            className="text-gray-400 hover:text-gray-600 transition cursor-pointer hover:bg-gray-200 rounded-full p-1"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+            <X size={24} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-5">
-            {/* Campo Nombre (Automático/Readonly) */}
+          <div className="p-6 space-y-6">
+            {/* Campo Nombre (Automático) */}
             <div>
-              <label className="block text-base font-medium text-gray-500 mb-1">
+              <label className="block text-sm font-semibold text-gray-500 mb-1">
                 Nombre (Automático)
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  // Si editamos, mostramos el nombre real. Si creamos, el sugerido.
                   value={
                     modeEdit && editMesaId
                       ? mesas.find((m) => m.id === editMesaId)?.nombre
                       : nombreSugerido
                   }
                   disabled
-                  className="w-full pl-4 pr-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 font-medium cursor-not-allowed select-none"
+                  className="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 font-bold cursor-not-allowed select-none"
                 />
               </div>
             </div>
 
             {/* Campo Capacidad */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Capacidad de personas
               </label>
               <div className="relative">
@@ -249,7 +229,7 @@ const MesaFormModal: React.FC<Props> = ({
                         : Number(e.target.value)
                     )
                   }
-                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all appearance-none bg-white"
+                  className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all appearance-none bg-white text-gray-800 font-medium"
                 >
                   {predefined.map((n) => (
                     <option key={n} value={n}>
@@ -258,38 +238,21 @@ const MesaFormModal: React.FC<Props> = ({
                   ))}
                   <option value="otro">Personalizada...</option>
                 </select>
-                {/* Icono Flecha */}
-                <div className="absolute right-3 top-3 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    ></path>
-                  </svg>
+
+                <div className="absolute right-3 top-3 pointer-events-none text-gray-500">
+                  <ChevronDown size={18} />
                 </div>
               </div>
 
-              {/* Input condicional para 'otro' */}
               {capacidad === "otro" && (
-                <div className="mt-3 animate-fadeIn">
+                <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
                   <input
                     type="number"
-                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-sm"
+                    className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all text-sm font-medium"
                     placeholder="Ingresa el número exacto (Máx 32)"
                     value={otroValor}
                     min={1}
                     max={32}
-                    onKeyDown={(e) =>
-                      ["e", "E", "-", "+", "."].includes(e.key) &&
-                      e.preventDefault()
-                    }
                     onChange={(e) => {
                       const valStr = e.target.value;
                       if (valStr === "") {
@@ -307,64 +270,97 @@ const MesaFormModal: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Campo Zona */}
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-1">
-                Zona
+            {/* ----------------------------------------------------------------------- */}
+            {/* CAMPO ZONA (DISEÑO RESTAURADO Y FLOTANTE) */}
+            {/* ----------------------------------------------------------------------- */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                Asignar Zona
               </label>
-              <div className="relative">
-                <select
-                  value={zonaId ?? ""}
-                  // Convertimos a número (ya que ahora Sin Zona tiene ID real)
-                  onChange={(e) => setZonaId(Number(e.target.value))}
-                  className="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all appearance-none bg-white"
-                >
-                  {zonasOrdenadas.length === 0 ? (
-                    <option value="" disabled>
-                      No hay zonas creadas
-                    </option>
-                  ) : (
-                    // ✅ USAMOS LA LISTA ORDENADA AQUÍ
-                    zonasOrdenadas.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.nombre}
-                      </option>
-                    ))
-                  )}
-                </select>
 
-                {/* Icono de flecha (se mantiene igual) */}
-                <div className="absolute right-3 top-3 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {/* 'relative' es necesario para que el dropdown se posicione respecto a este div */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className={`w-full px-4 py-2.5 border border-gray-300 rounded-xl outline-none 
+                             bg-white text-gray-800 transition text-left flex justify-between items-center 
+                             hover:border-[#FA9623] focus:ring-2 focus:ring-[#FA9623]/20
+                             ${
+                               dropdownOpen
+                                 ? "border-[#FA9623] ring-2 ring-[#FA9623]/20"
+                                 : ""
+                             }`}
+                >
+                  <span
+                    className={
+                      zonaId ? "text-gray-900 font-medium" : "text-gray-500"
+                    }
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    ></path>
-                  </svg>
-                </div>
+                    {zonasOrdenadas.find((z) => z.id === zonaId)?.nombre ||
+                      "Selecciona una zona..."}
+                  </span>
+
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-500 transition-transform duration-200 ${
+                      dropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* DROPDOWN FLOTANTE 
+                    z-50 asegura que flote sobre cualquier otro elemento del modal.
+                */}
+                {dropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
+                    {zonasOrdenadas.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center italic">
+                        No hay zonas disponibles.
+                      </div>
+                    ) : (
+                      zonasOrdenadas.map((z) => (
+                        <div
+                          key={z.id}
+                          onClick={() => {
+                            setZonaId(z.id);
+                            setDropdownOpen(false);
+                          }}
+                          className={`px-4 py-2.5 cursor-pointer transition text-sm flex items-center justify-between
+                            ${
+                              zonaId === z.id
+                                ? "bg-[#FFF8F0] text-[#FA9623] font-bold"
+                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                            }`}
+                        >
+                          {z.nombre}
+
+                          {zonaId === z.id && (
+                            <span className="w-2 h-2 rounded-full bg-[#FA9623]" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {zonasOrdenadas.length === 0 && (
-                <p className="text-sm text-red-500 mt-1">
-                  Necesitas crear una zona primero.
+                <p className="text-xs text-red-500 mt-2 flex items-center gap-1 font-medium bg-red-50 p-2 rounded-lg border border-red-100">
+                  ⚠️ Necesitas crear una zona primero en el gestor de zonas.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Footer con botones */}
-          <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100">
+          {/* CORRECCIÓN 3: Agregamos 'rounded-b-2xl' al footer 
+              para mantener la estética inferior.
+          */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100 rounded-b-2xl">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-offset-1 focus:ring-gray-200 transition-colors shadow-sm cursor-pointer"
+              className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
             >
               Cancelar
             </button>
@@ -372,10 +368,11 @@ const MesaFormModal: React.FC<Props> = ({
             <button
               type="submit"
               disabled={zonas.length === 0}
-              className={`px-5 py-2 text-base font-medium text-white rounded-lg focus:ring-2 focus:ring-offset-1 focus:ring-[#FA9623] transition-all shadow-md hover:shadow-lg cursor-pointer ${
+              className={`px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center gap-2
+              ${
                 zonas.length === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-[#FA9623] hover:bg-[#e88b1f]"
+                  ? "bg-gray-400 cursor-not-allowed opacity-70"
+                  : "bg-[#FA9623] hover:bg-[#e88b1f] active:scale-[0.98]"
               }`}
             >
               {modeEdit ? "Guardar Cambios" : "Crear Mesa"}

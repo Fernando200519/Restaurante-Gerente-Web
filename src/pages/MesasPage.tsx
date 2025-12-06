@@ -5,7 +5,7 @@ import { useMesas } from "../hooks/useMesas";
 import MesaFormModal from "../components/tables/MesaFormModal";
 import MesaModal from "../components/tables/mesa-modal/MesaModal";
 import { MesaCard } from "../components/tables/MesaCard";
-import ZonasModal from "../components/tables/ZonaModal";
+import ZonasModal from "../components/tables/zona-modal/ZonaModal";
 
 const Inner = () => {
   const {
@@ -230,23 +230,28 @@ const Inner = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-            {mesasFiltradas.map((mesa) => (
-              <div key={mesa.id} className="relative animate-fadeIn">
-                <div
-                  onClick={() => openDetail(mesa.id)}
-                  className="cursor-pointer transition hover:scale-[1.02]"
-                >
-                  <MesaCard
-                    mesa={{ ...mesa, zona: mesa.nombreZona }}
-                    zonaDeshabilitada={
-                      mesa.zonaId !== null
-                        ? disabledZonesIds.includes(mesa.zonaId)
-                        : false
-                    }
-                  />
+            {mesasFiltradas.map((mesa) => {
+              // ************ CORRECCIÓN: Buscamos el estado de la zona por NOMBRE ************
+              // Como mesa.zonaId viene null, buscamos en el array 'zonas' usando el nombre de la mesa.
+              const zonaObj = zonas.find((z) => z.nombre === mesa.nombreZona);
+              const estaDeshabilitada = zonaObj?.estado === "Inactiva";
+              // ******************************************************************************
+
+              return (
+                <div key={mesa.id} className="relative animate-fadeIn">
+                  <div
+                    onClick={() => openDetail(mesa.id)}
+                    className="cursor-pointer transition hover:scale-[1.02]"
+                  >
+                    <MesaCard
+                      mesa={{ ...mesa, zona: mesa.nombreZona }}
+                      // Pasamos el valor calculado arriba
+                      zonaDeshabilitada={estaDeshabilitada}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

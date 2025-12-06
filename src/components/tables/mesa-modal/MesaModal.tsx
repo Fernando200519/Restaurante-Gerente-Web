@@ -4,6 +4,14 @@ import React, { useEffect, useState } from "react";
 import { Mesa, Zona, OrderDetail } from "../../../types/mesa";
 import { useMesas } from "../../../hooks/useMesas";
 import { getOrders, getOrderById, OrderBackend } from "../../../api/ordersApi";
+import {
+  X,
+  Table,
+  Settings,
+  ClipboardList,
+  Ban,
+  RotateCcw,
+} from "lucide-react";
 
 import { PlatilloRow } from "./PlatilloRow";
 import { MesaDetailsTab } from "./MesaDetailsTab";
@@ -91,49 +99,104 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, zonas, onClose }) => {
     localMesa.estado
   );
 
+  // LÓGICA DE ESTILOS DEL HEADER
+  const headerStyles: Record<
+    string,
+    { bg: string; text: string; icon: React.ReactNode }
+  > = {
+    LIBRE: {
+      bg: "bg-green-500",
+      text: "Disponible",
+      icon: <Table size={20} className="mr-2" />,
+    },
+    OCUPADA: {
+      bg: "bg-red-500",
+      text: "Ocupada",
+      icon: <ClipboardList size={20} className="mr-2" />,
+    },
+    ESPERANDO: {
+      bg: "bg-yellow-500",
+      text: "Esperando",
+      icon: <ClipboardList size={20} className="mr-2" />,
+    },
+    AGRUPADA: {
+      bg: "bg-purple-500",
+      text: "Agrupada",
+      icon: <ClipboardList size={20} className="mr-2" />,
+    },
+    INACTIVA: {
+      bg: "bg-gray-500",
+      text: "Inactiva",
+      icon: <Ban size={20} className="mr-2" />,
+    },
+    DESACTIVADA: {
+      bg: "bg-gray-500",
+      text: "Desactivada",
+      icon: <Ban size={20} className="mr-2" />,
+    },
+  };
+
+  const currentHeaderStyle =
+    headerStyles[localMesa.estado] || headerStyles["LIBRE"];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Fondo */}
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+        onClick={onClose}
+      />
 
       {/* Contenido */}
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10 overflow-hidden">
-        {/* HEADER */}
-        <div className="bg-[#FA9623] text-white p-5 flex justify-between items-center">
-          <h3 className="text-2xl font-bold">{localMesa.nombre}</h3>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10 overflow-hidden transform transition-all duration-300 scale-100">
+        {/* HEADER MEJORADO */}
+        <div
+          className={`p-5 flex justify-between items-center ${currentHeaderStyle.bg} text-white`}
+        >
+          <div className="flex flex-col">
+            <h3 className="text-3xl font-extrabold flex items-center">
+              {localMesa.nombre}
+            </h3>
+          </div>
 
-          <button className="text-white/70 text-2xl" onClick={onClose}>
-            ✕
+          <button
+            className="text-white opacity-80 hover:opacity-100 transition cursor-pointer"
+            onClick={onClose}
+            title="Cerrar"
+          >
+            <X size={24} />
           </button>
         </div>
 
-        {/* TABS */}
-        <div className="flex gap-6 bg-gray-50 px-6 border-b">
+        {/* TABS CON ÍCONOS */}
+        <div className="flex gap-1 bg-white border-b border-gray-100 px-6">
           <button
-            className={`py-3 border-b-2 ${
+            className={`flex items-center gap-2 py-3 px-3 transition-all text-lg font-semibold border-b-2 cursor-pointer ${
               activeTab === "DETALLES"
                 ? "text-[#FA9623] border-[#FA9623]"
-                : "border-transparent text-gray-500"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
             onClick={() => setActiveTab("DETALLES")}
           >
+            <ClipboardList size={18} />
             Detalles
           </button>
 
           <button
-            className={`py-3 border-b-2 ${
+            className={`flex items-center gap-2 py-3 px-3 transition-all text-lg font-semibold border-b-2 cursor-pointer ${
               activeTab === "EDITAR"
                 ? "text-[#FA9623] border-[#FA9623]"
-                : "border-transparent text-gray-500"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
             onClick={() => setActiveTab("EDITAR")}
           >
+            <Settings size={18} />
             Configuración
           </button>
         </div>
 
         {/* CONTENT */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
           {activeTab === "DETALLES" && (
             <MesaDetailsTab orderBackend={orderBackend} localMesa={localMesa} />
           )}
