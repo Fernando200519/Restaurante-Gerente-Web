@@ -1,5 +1,5 @@
 // src/pages/MesasPage.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { MesasProvider } from "../context/MesasContext";
 import { useMesas } from "../hooks/useMesas";
 import MesaFormModal from "../components/tables/MesaFormModal";
@@ -20,6 +20,7 @@ const Inner = () => {
     eliminarZona,
     eliminarZonaConMesas,
     toggleEstadoZona,
+    refreshAll, // <--- 1. IMPORTAR LA FUNCIÓN
   } = useMesas();
 
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -33,9 +34,6 @@ const Inner = () => {
   const sinZonaObj = zonas.find(
     (z) => z.nombre.trim().toLowerCase() === "sin zona"
   );
-
-  // CORRECCIÓN: Ahora solo comprobamos si alguna mesa tiene el nombre de zona "Sin Zona".
-  // Este nombre se asigna en adaptMesa si la mesa no tiene zona.
   const hayMesasSinZona = mesas.some(
     (m) => m.zona && m.zona.trim().toLowerCase() === "sin zona"
   );
@@ -43,23 +41,15 @@ const Inner = () => {
   const nombreSinZona = sinZonaObj?.nombre || "Sin Zona";
 
   const getNombreZona = (mesaZona: string | undefined, id: number | null) => {
-    // Si el campo 'mesaZona' ya tiene un valor (que vino del backend via adaptMesa), lo usamos.
     if (mesaZona && mesaZona.trim().toLowerCase() !== "sin zona") {
       return mesaZona;
     }
-
-    // Si zonaId es null o undefined, o la zona no se encuentra, usamos el nombre estandarizado 'Sin Zona'.
-    // Esto es un fallback, pero no debería activarse si el backend ya envió el nombre.
     return zonas.find((z) => z.id === id)?.nombre || nombreSinZona;
   };
 
   const disabledZonesIds = useMemo(() => {
     return zonas.filter((z) => z.estado === "Inactiva").map((z) => z.id);
   }, [zonas]);
-
-  // -------------------------------------------------------------
-  // 🧹 CÓDIGO CORREGIDO: mesasFiltradas SIN LÓGICA ERRÓNEA
-  // -------------------------------------------------------------
   const mesasFiltradas = useMemo(() => {
     let resultado = mesas.map((m) => ({
       ...m,
@@ -71,7 +61,6 @@ const Inner = () => {
         (m) => m.nombreZona === zonaSeleccionadaNombre
       );
     } else {
-      // Filtrar mesas inactivas SOLO cuando "Todas" está seleccionada
       const idSinZona = zonas.find(
         (z) => z.nombre === "Sin Zona" || z.nombre === "Sin zona"
       )?.id;
@@ -94,7 +83,6 @@ const Inner = () => {
       return numA - numB;
     });
   }, [mesas, zonas, zonaSeleccionadaNombre, disabledZonesIds]);
-  // -------------------------------------------------------------
 
   const total = mesasFiltradas.length;
   const libres = mesasFiltradas.filter((m) => m.estado === "LIBRE").length;
@@ -132,6 +120,21 @@ const Inner = () => {
 
   const showKpis =
     zonaSeleccionadaNombre !== nombreSinZona && !isZonaDeshabilitada;
+
+  // -------------------------------------------------------------
+  // 2. POLLING: ACTUALIZACIÓN CADA 5 SEGUNDOS
+  // -------------------------------------------------------------
+  useEffect(() => {
+    // Configurar el intervalo
+    const intervalo = setInterval(() => {
+      // Llamamos a refreshAll con 'false' para que NO salga el spinner de carga
+      refreshAll(false);
+    }, 5000); // 5000ms = 5 segundos
+
+    // Limpiar al salir de la pantalla
+    return () => clearInterval(intervalo);
+  }, [refreshAll]);
+  // -------------------------------------------------------------
 
   if (loading)
     return (
@@ -231,11 +234,8 @@ const Inner = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
             {mesasFiltradas.map((mesa) => {
-              // ************ CORRECCIÓN: Buscamos el estado de la zona por NOMBRE ************
-              // Como mesa.zonaId viene null, buscamos en el array 'zonas' usando el nombre de la mesa.
               const zonaObj = zonas.find((z) => z.nombre === mesa.nombreZona);
               const estaDeshabilitada = zonaObj?.estado === "Inactiva";
-              // ******************************************************************************
 
               return (
                 <div key={mesa.id} className="relative animate-fadeIn">

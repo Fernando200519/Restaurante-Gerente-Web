@@ -20,14 +20,6 @@ interface ZonaModalProps {
   eliminarZona: (id: number) => Promise<void>;
   eliminarZonaConMesas: (id: number) => Promise<void>;
   toggleEstadoZona: (zona: Zona) => Promise<void>;
-  moverMesasDeZonaContext: (
-    origenId: number,
-    destinoId: number
-  ) => Promise<void>;
-  migrarMesasNuevaZonaContext: (
-    origenId: number,
-    nuevoNombre: string
-  ) => Promise<void>;
 }
 
 const ZonaModal: React.FC<ZonaModalProps> = ({
@@ -40,7 +32,6 @@ const ZonaModal: React.FC<ZonaModalProps> = ({
   eliminarZonaConMesas,
   toggleEstadoZona,
 }) => {
-  // 1. EXTRAER LAS NUEVAS FUNCIONES DEL CONTEXTO
   const {
     mesas,
     moverMesasDeZonaContext, // <--- FALTABA ESTO

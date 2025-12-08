@@ -1,11 +1,11 @@
 // src/components/mesas/MesaCard.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Mesa } from "../../types/mesa";
-import { Clock, DollarSign, AlertCircle, Ban } from "lucide-react"; // ✅ Agregamos Ban
+import { Clock, DollarSign, AlertCircle, Ban } from "lucide-react";
 
 interface Props {
   mesa: Mesa;
-  zonaDeshabilitada?: boolean; // 👈 AGREGA ESTA LÍNEA (el ? la hace opcional)
+  zonaDeshabilitada?: boolean;
 }
 
 const formatCurrency = (n?: number) =>
@@ -18,7 +18,44 @@ const formatCurrency = (n?: number) =>
       });
 
 export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
-  // --- LÓGICA DE COLORES MODERNOS (Soft UI) ---
+  // Estado para forzar la actualización del reloj cada minuto
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    // Solo activamos el intervalo si la mesa NO está libre
+    if (mesa.estado === "LIBRE") return;
+
+    const timer = setInterval(() => setTick((t) => t + 1), 60000); // Cada 60 seg
+    return () => clearInterval(timer);
+  }, [mesa.estado]);
+
+  // ---------------------------------------------------------
+  // LÓGICA DE TIEMPO (Cronómetro)
+  // ---------------------------------------------------------
+  const getTiempoTranscurrido = () => {
+    if (!mesa.orden?.startedAt) return "0 min";
+
+    // 1. Corrección UTC (Igual que en el modal)
+    let iso = mesa.orden.startedAt.trim().replace(" ", "T");
+    if (!iso.endsWith("Z")) iso += "Z";
+
+    const inicio = new Date(iso);
+    const ahora = new Date();
+
+    // Diferencia en minutos
+    const diffMins = Math.floor((ahora.getTime() - inicio.getTime()) / 60000);
+
+    if (diffMins < 1) return "1 min"; // Mínimo mostrar 1 min
+    if (diffMins < 60) return `${diffMins} min`;
+
+    // Formato horas y minutos (ej: 1h 20m)
+    const h = Math.floor(diffMins / 60);
+    const m = diffMins % 60;
+    return `${h}h ${m}m`;
+  };
+
+  const tiempoTexto = getTiempoTranscurrido();
+
   const estadoStyles: Record<
     string,
     { border: string; bg: string; text: string; ring: string }
@@ -53,14 +90,12 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
       text: "text-green-600",
       ring: "ring-green-100",
     },
-    // ✅ Estilo específico para INACTIVA (Gris y apagado)
     INACTIVA: {
       border: "border-gray-200",
       bg: "bg-gray-50",
       text: "text-gray-400",
       ring: "ring-gray-100",
     },
-    // Mantenemos DESACTIVADA por si acaso tienes datos viejos
     DESACTIVADA: {
       border: "border-gray-200",
       bg: "bg-gray-50",
@@ -69,12 +104,8 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
     },
   };
 
-  // --- 2. CÁLCULOS DE ESTADO ---
   const isSecondaryGrouped = mesa.grupo && !mesa.principal;
 
-  // La mesa está visualmente deshabilitada si:
-  // A) La Zona entera está cerrada OR
-  // B) La mesa individual está Inactiva/Desactivada
   const isVisuallyDisabled =
     zonaDeshabilitada ||
     mesa.estado === "INACTIVA" ||
@@ -94,7 +125,6 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
         ring: "ring-gray-100",
       };
 
-  // --- DATOS ---
   const minutos = (() => {
     if (!mesa.orden?.startedAt) return null;
     const inicio = new Date(mesa.orden.startedAt);
@@ -104,14 +134,13 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
   const currentTotal = mesa.orden?.montoTotal ?? 0;
   const alertasActivas = mesa.orden?.totalAlertas || 0;
 
-  // Badge del Estado (Pill shape)
   const EstadoBadge = () => {
     const badgeColors: Record<string, string> = {
       LIBRE: "bg-[#22C55E] text-[#FFFFFF]",
       OCUPADA: "bg-[#EF4444] text-[#FFFFFF]",
       ESPERANDO: "bg-[#F59E0B] text-[#FFFFFF]",
       AGRUPADA: "bg-[#A855F7] text-[#FFFFFF]",
-      INACTIVA: "bg-gray-200 text-gray-500", // Gris oscuro para badge
+      INACTIVA: "bg-gray-200 text-gray-500",
       DESACTIVADA: "bg-gray-200 text-gray-500",
     };
     const colorClass = badgeColors[mesa.estado] || "bg-gray-100 text-gray-600";
@@ -131,13 +160,12 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
         border ${style.border} ${style.bg} 
         ${
           isVisuallyDisabled
-            ? "opacity-60 grayscale pointer-events-none" // Estilo apagado
-            : "hover:shadow-md hover:-translate-y-1 hover:border-opacity-100" // Estilo interactivo
+            ? "opacity-60 grayscale pointer-events-none"
+            : "hover:shadow-md hover:-translate-y-1 hover:border-opacity-100"
         } 
       `}
       style={{ minHeight: "130px" }}
     >
-      {/* 1. Badge de Grupo (Flotante) */}
       {mesa.grupo && (
         <div className="absolute -top-2 -left-2 z-10">
           <span className="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-sm shadow-purple-200">
@@ -146,7 +174,6 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
         </div>
       )}
 
-      {/* 2. HEADER: Nombre y Badge de Estado */}
       <div className="flex items-start justify-between mb-4">
         <h3
           className={`text-xl font-bold ${
@@ -160,9 +187,6 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
         {!isSecondaryGrouped && <EstadoBadge />}
       </div>
 
-      {/* 3. BODY: Lógica Condicional de Contenido */}
-
-      {/* CASO A: Zona Cerrada o Mesa Inactiva */}
       {isVisuallyDisabled ? (
         <div className="h-[62px] flex flex-col items-center justify-center text-gray-500 bg-gray-100/50 rounded-lg border border-gray-200 border-dashed mb-2">
           <div className="flex items-center gap-2 text-base font-medium">
@@ -170,23 +194,19 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
           </div>
         </div>
       ) : mesa.estado !== "LIBRE" ? (
-        // CASO B: Mesa Ocupada/Esperando (Muestra Tiempo y Dinero)
         <div className="grid grid-cols-2 gap-4 mb-2">
-          {/* Columna Tiempo */}
+          {/* BLOQUE DE TIEMPO (Mejorado) */}
           <div className="flex flex-col items-start justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-100/50">
             <div className="flex items-center gap-1.5 text-base text-gray-500 font-medium mb-0.5">
               <Clock size={12} />
               Tiempo
             </div>
-            <div className={"text-lg font-bold tabular-num text-gray-700"}>
-              {minutos ?? 0}
-              <span className="text-xs font-normal text-gray-500 ml-0.5">
-                min
-              </span>
+            {/* Aquí mostramos el texto formateado (ej: 1h 20m) */}
+            <div className="text-lg font-bold tabular-nums text-gray-700">
+              {tiempoTexto}
             </div>
           </div>
 
-          {/* Columna Cuenta */}
           <div className="flex flex-col items-end justify-center p-2 rounded-lg bg-gray-50/50 border border-gray-100/50">
             <div className="flex items-center gap-1.5 text-base text-gray-500 font-medium mb-0.5">
               Cuenta
@@ -202,15 +222,12 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
           </div>
         </div>
       ) : (
-        // CASO C: Mesa Libre
         <div className="h-[62px] flex items-center justify-center text-gray-400 text-base font-medium mb-2">
           Disponible
         </div>
       )}
 
-      {/* 4. FOOTER: Alertas y Nombre de Zona */}
       <div className="mt-3 pt-3 border-t border-gray-300 flex items-center justify-between">
-        {/* Izquierda: Alertas */}
         <div className="flex items-center gap-2">
           {alertasActivas > 0 && !isVisuallyDisabled && (
             <div className="flex items-center gap-1 text-rose-600 bg-rose-50 px-2 py-1 rounded text-[14px] font-bold animate-pulse">
@@ -222,7 +239,6 @@ export const MesaCard: React.FC<Props> = ({ mesa, zonaDeshabilitada }) => {
           )}
         </div>
 
-        {/* Derecha: Nombre de Zona */}
         <div className="flex items-center gap-1 text-base font-medium text-gray-400">
           <span>{mesa.zona || "Sin zona"}</span>
         </div>
