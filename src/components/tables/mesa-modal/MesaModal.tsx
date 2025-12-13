@@ -214,11 +214,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, zonas, onClose }) => {
               onSave={async (data) => {
                 setLoading(true);
                 try {
-                  await actualizarMesa(
-                    localMesa.id,
-                    data.capacidad,
-                    data.zonaId
-                  );
+                  await actualizarMesa(localMesa.id, data.zonaId);
                   onClose();
                 } finally {
                   setLoading(false);

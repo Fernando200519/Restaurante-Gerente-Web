@@ -23,10 +23,9 @@ interface MesasContextProps {
   zonas: Zona[];
   loading: boolean;
 
-  crearMesa: (data: { capacidad: number; zonaId: number }) => Promise<void>;
+  crearMesa: (data: { zonaId: number }) => Promise<void>;
   actualizarMesa: (
     id: number,
-    capacidad: number,
     zonaId: number | null,
     estadoMesa?: string
   ) => Promise<void>;
@@ -77,7 +76,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
     inicializarDatos();
   }, []);
-  const crearMesa = async (data: { capacidad: number; zonaId: number }) => {
+  const crearMesa = async (data: { zonaId: number }) => {
     const nueva = await addMesa(data);
 
     let zonaNombre = nueva.zona;
@@ -94,13 +93,12 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   };
   const actualizarMesa = async (
     id: number,
-    capacidad: number,
     zonaId: number | null,
     estadoMesa?: string
   ) => {
     setLoading(true);
     try {
-      await editMesa(id, capacidad, zonaId, estadoMesa);
+      await editMesa(id, zonaId, estadoMesa);
 
       const mesaActualizada = await getMesaConOrdenes(id);
       if (mesaActualizada) {
@@ -127,7 +125,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
           return {
             ...m,
-            capacidad: capacidad ?? m.capacidad,
             zonaId: zonaId ?? m.zonaId,
             zona: zonaNombreCalculada,
           };
@@ -143,7 +140,6 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
           m.id === id
             ? {
                 ...m,
-                capacidad: capacidad ?? m.capacidad,
                 zonaId: zonaId ?? m.zonaId,
                 zona:
                   (zonaId != null &&
@@ -171,7 +167,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "LIBRE" } : m))
       );
-      await editMesa(id, undefined, undefined, "Libre");
+      await editMesa(id, undefined, "Libre");
       await refreshAll();
     } catch (error) {
       console.error("Error al habilitar mesa:", error);
@@ -188,7 +184,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "INACTIVA" } : m))
       );
-      await editMesa(id, undefined, undefined, "Inactiva");
+      await editMesa(id, undefined, "Inactiva");
 
       await refreshAll();
     } catch (error) {
@@ -241,13 +237,8 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
           })
         );
       }
-
-      // Opcional: Si quieres estar 100% seguro de que el backend y frontend están sincronizados:
-      // await refreshAll();
     } catch (error) {
       console.error(error);
-      // Si falla, podrías recargar todo para deshacer el cambio optimista
-      // refreshAll();
     }
   };
 
@@ -316,7 +307,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (mesasAfectadas.length > 0) {
         const promesasDeActualizacion = mesasAfectadas.map((m) =>
-          editMesa(m.id, undefined, undefined, nuevoEstadoMesa)
+          editMesa(m.id, undefined, nuevoEstadoMesa)
         );
         await Promise.all(promesasDeActualizacion);
       }

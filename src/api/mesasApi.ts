@@ -1,19 +1,18 @@
 import { Mesa, Zona } from "../types/mesa";
-import { API_URL } from "../config";
-import { buildFetchHeaders } from "./config";
+import { apiClient } from "./config";
 
 interface MesaBackend {
   id: number;
-  nombre?: string;
-  capacidad?: number;
+  zona?: string;
+  area?: { id: number; nombre: string; estado: string };
   zonaId?: number | null;
-  estadoMesa?: string;
   estado?: string;
-  updatedAt?: string;
-  orderId?: number | null;
-  nombreZona?: string;
   totalCuentaActiva?: number | null;
-  ordenFechaHoraInicio?: string | null;
+  ordenId?: number | null;
+  fechaHoraInicioOcupacion?: string | null;
+
+  nombre?: string;
+  updatedAt?: string;
 }
 
 interface FormDataResponse {
@@ -21,7 +20,7 @@ interface FormDataResponse {
 }
 
 const adaptMesa = (m: MesaBackend): Mesa => {
-  const rawEstado = m.estado || m.estadoMesa || "LIBRE";
+  const rawEstado = m.estado || "LIBRE";
   let estadoNormalizado = String(rawEstado).toUpperCase();
   if (estadoNormalizado === "ACTIVA") estadoNormalizado = "LIBRE";
 
@@ -39,20 +38,25 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     estadosPermitidos.includes(estadoNormalizado) ? estadoNormalizado : "LIBRE"
   ) as Mesa["estado"];
 
-  const nombreZonaFinal =
-    m.nombreZona && m.nombreZona.trim() ? m.nombreZona : "Sin Zona";
+  let nombreZonaFinal = "Sin Zona";
+
+  if (typeof m.zona === "string") {
+    nombreZonaFinal = m.zona;
+  } else if (m.area && m.area.nombre) {
+    nombreZonaFinal = m.area.nombre;
+  }
 
   const zonaIdFinal = m.zonaId ?? null;
 
   let ordenFinal: any = null;
 
-  if (m.orderId && m.orderId > 0) {
+  if ((m.ordenId && m.ordenId > 0) || m.totalCuentaActiva != null) {
     ordenFinal = {
-      id: m.orderId,
+      id: m.ordenId || 0,
       total: m.totalCuentaActiva || 0,
       montoTotal: m.totalCuentaActiva || 0,
       totalAlertas: 0,
-      startedAt: m.ordenFechaHoraInicio || undefined,
+      startedAt: m.fechaHoraInicioOcupacion || undefined,
       platillos: [],
     };
   }
@@ -60,111 +64,79 @@ const adaptMesa = (m: MesaBackend): Mesa => {
   return {
     id: m.id,
     nombre: m.nombre || `Mesa ${m.id}`,
-    capacidad: m.capacidad || 2,
     zonaId: zonaIdFinal,
-    zona: nombreZonaFinal, // Usa la variable con la lógica limpia
+    zona: nombreZonaFinal,
     estado: estadoFinal,
     updatedAt: m.updatedAt,
     orden: ordenFinal,
   };
 };
 
-export const getMesas = async (): Promise<Mesa[]> => {
-  const res = await fetch(`${API_URL}/tables`, {
-    headers: buildFetchHeaders(),
-  });
-  if (!res.ok) throw new Error("Error obteniendo mesas");
-  const data: MesaBackend[] = await res.json();
+export const getMesas = async (zoneId?: number): Promise<Mesa[]> => {
+  const url = zoneId ? `/tables?zoneId=${zoneId}` : "/tables";
+  const { data } = await apiClient.get<MesaBackend[]>(url);
   return data.map(adaptMesa);
 };
 
 export const getFormData = async (): Promise<FormDataResponse> => {
   try {
-    const response = await fetch(`${API_URL}/tables/form-data`, {
-      headers: buildFetchHeaders(),
-    });
-    if (!response.ok) throw new Error("Error cargando configuración");
-    return await response.json();
+    const { data } = await apiClient.get<FormDataResponse>("/tables/form-data");
+    return data;
   } catch (error) {
     console.error("Error getFormData:", error);
     return { zonas: [] };
   }
 };
 
-export const addMesa = async (data: {
-  capacidad: number;
-  zonaId: number;
-}): Promise<Mesa> => {
-  const res = await fetch(`${API_URL}/tables`, {
-    method: "POST",
-    headers: buildFetchHeaders(),
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) throw new Error("Error creando mesa");
-  const mesaBack = await res.json();
+export const addMesa = async (data: { zonaId: number }): Promise<Mesa> => {
+  const { data: mesaBack } = await apiClient.post<MesaBackend>("/tables", data);
   return adaptMesa(mesaBack);
 };
 
+// PATCH /tables/{id}
 export const editMesa = async (
   id: number,
-  capacidad?: number,
   zonaId?: number | null,
   estadoMesa?: string
 ): Promise<void> => {
-  const bodyData = {
-    capacidad,
-    zonaId,
-    estado: estadoMesa,
-    estadoMesa: estadoMesa,
-  };
+  // 1. Construimos un objeto dinámico "limpio"
+  // Solo agregamos las propiedades si NO son undefined
+  const bodyData: Record<string, any> = {};
 
-  console.log("PATCH enviando:", bodyData);
+  if (zonaId !== undefined) {
+    bodyData.zonaId = zonaId;
+  }
 
-  const res = await fetch(`${API_URL}/tables/${id}`, {
-    method: "PATCH",
-    headers: buildFetchHeaders(),
-    body: JSON.stringify(bodyData),
-  });
+  if (estadoMesa !== undefined) {
+    bodyData.estadoMesa = estadoMesa;
+  }
 
-  if (!res.ok) throw new Error("Error editando mesa");
+  console.log("PATCH enviando limpio:", bodyData);
+
+  // 2. Enviamos solo lo necesario (ej: { "zonaId": 5 })
+  // Esto evita que el backend resetee el estado por recibir un null
+  await apiClient.patch(`/tables/${id}`, bodyData);
 };
 
 export const deleteMesas = async (ids: number[]): Promise<void> => {
-  const promises = ids.map((id) =>
-    fetch(`${API_URL}/tables/${id}`, {
-      method: "DELETE",
-      headers: buildFetchHeaders(),
-    })
-  );
-
-  const results = await Promise.all(promises);
-  const failed = results.some((r) => !r.ok);
-  if (failed) throw new Error("Error al eliminar algunas mesas");
+  const promises = ids.map((id) => apiClient.delete(`/tables/${id}`));
+  await Promise.all(promises);
 };
 
 export const getMesaConOrdenes = async (id: number): Promise<Mesa | null> => {
-  const res = await fetch(`${API_URL}/tables/${id}`, {
-    headers: buildFetchHeaders(),
-  });
-  if (!res.ok) return null;
-  const text = await res.text();
-  if (!text || text.trim() === "") return null;
-  let data;
   try {
-    data = JSON.parse(text);
-  } catch (e) {
+    const { data } = await apiClient.get(`/tables/${id}`);
+
+    let item: any = null;
+    if (Array.isArray(data)) {
+      item = data.find((x: any) => Number(x.id) === Number(id)) || data[0];
+    } else {
+      item = data;
+    }
+
+    if (!item) return null;
+    return adaptMesa(item);
+  } catch (error) {
     return null;
   }
-
-  let item: any = null;
-  if (Array.isArray(data)) {
-    item =
-      data.find((x: any) => Number(x.id) === Number(id)) || data[0] || null;
-  } else {
-    item = data;
-  }
-
-  if (!item) return null;
-  return adaptMesa(item);
 };

@@ -20,7 +20,7 @@ const Inner = () => {
     eliminarZona,
     eliminarZonaConMesas,
     toggleEstadoZona,
-    refreshAll, // <--- 1. IMPORTAR LA FUNCIÓN
+    refreshAll,
   } = useMesas();
 
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -122,19 +122,17 @@ const Inner = () => {
     zonaSeleccionadaNombre !== nombreSinZona && !isZonaDeshabilitada;
 
   // -------------------------------------------------------------
-  // 2. POLLING: ACTUALIZACIÓN CADA 5 SEGUNDOS
+  // 2. POLLING INTELIGENTE
   // -------------------------------------------------------------
   useEffect(() => {
-    // Configurar el intervalo
     const intervalo = setInterval(() => {
-      // Llamamos a refreshAll con 'false' para que NO salga el spinner de carga
-      refreshAll(false);
-    }, 5000); // 5000ms = 5 segundos
+      if (!detailMesaId) {
+        refreshAll(false);
+      }
+    }, 5000);
 
-    // Limpiar al salir de la pantalla
     return () => clearInterval(intervalo);
-  }, [refreshAll]);
-  // -------------------------------------------------------------
+  }, [refreshAll, detailMesaId]);
 
   if (loading)
     return (

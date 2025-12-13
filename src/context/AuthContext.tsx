@@ -6,6 +6,7 @@ interface AuthContextType {
   token: string | null;
   role: string | null;
   estado: string | null;
+  user: any | null; // Agregué esto por si quieres usar el nombre del usuario después
   isAuthenticated: boolean;
   loginUser: (data: LoginResponse) => void;
   logoutUser: () => void;
@@ -15,19 +16,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => getToken());
-
   const [role, setRole] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);
+  const [user, setUser] = useState<any | null>(null); // Estado para guardar infoUsuario
 
   const loginUser = (data: LoginResponse) => {
-    const jwt = data.token;
-    const rol = data.rol ?? null;
+    const jwt = data.accessToken;
+    const rol = data.infoUsuario?.tipo ?? null;
     const estadoResp = data.estado ?? null;
 
     setToken(jwt);
     setRole(rol);
     setEstado(estadoResp);
-
+    setUser(data.infoUsuario);
     saveToken(jwt);
   };
 
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setRole(null);
     setEstado(null);
+    setUser(null);
     removeToken();
   };
 
@@ -44,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         token,
         role,
         estado,
+        user, // Exponemos la info del usuario
         isAuthenticated: !!token,
         loginUser,
         logoutUser,

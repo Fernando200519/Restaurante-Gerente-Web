@@ -1,6 +1,6 @@
 // src/components/tables/MesaFormModal.tsx
 import React, { useEffect, useState } from "react";
-import { useMesas } from "../../hooks/useMesas"; // ✅ Usamos el Hook nuevo
+import { useMesas } from "../../hooks/useMesas";
 import { Zona } from "../../types/mesa";
 import { ChevronDown, MapPin, X } from "lucide-react";
 
@@ -8,18 +8,10 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   editMesaId?: number | null;
-
-  // 👇 Recibimos objetos Zona reales
   zonas: Zona[];
-  // 👇 ID de la zona por defecto (o undefined si es 'Todas')
   zonaDefaultId?: number;
-
-  // Opcional: si queremos pasar la función desde fuera,
-  // aunque podemos sacarla del hook también.
   onSubmit?: (data: { capacidad: number; zonaId: number }) => Promise<void>;
 }
-
-const predefined = [2, 4, 6, 8];
 
 const MesaFormModal: React.FC<Props> = ({
   visible,
@@ -28,7 +20,6 @@ const MesaFormModal: React.FC<Props> = ({
   zonas,
   zonaDefaultId,
 }) => {
-  // Traemos las acciones y datos del hook
   const { crearMesa, actualizarMesa, mesas } = useMesas();
 
   const [capacidad, setCapacidad] = useState<number | "otro">(4);
@@ -65,44 +56,24 @@ const MesaFormModal: React.FC<Props> = ({
 
   const nombreSugerido = `Mesa ${siguienteNumero}`;
 
-  // --- EFECTO: Cargar datos al abrir o cambiar modo ---
   useEffect(() => {
     if (visible) {
       if (editMesaId) {
-        // MODO EDICIÓN
         const mesa = mesas.find((m) => m.id === editMesaId);
         if (mesa) {
           setModeEdit(true);
-
-          // Cargar Capacidad
-          // TypeScript puede quejarse si mesa.capacidad es null, así que protegemos
-          if (mesa.capacidad && predefined.includes(mesa.capacidad)) {
-            setCapacidad(mesa.capacidad);
-            setOtroValor("");
-          } else {
-            setCapacidad("otro");
-            // ✅ CORRECCIÓN 1: Si es null, pasamos ""
-            setOtroValor(mesa.capacidad ?? "");
-          }
-
-          // Cargar Zona ID
-          // ✅ CORRECCIÓN 2: Convertimos el null de la BD en "" para el Select del Form
           setZonaId(mesa.zonaId ?? "");
         }
       } else {
-        // MODO CREACIÓN
         setModeEdit(false);
         setCapacidad(4);
         setOtroValor("");
 
-        // Si hay un default válido (estamos en un tab de zona), lo usamos.
         if (zonaDefaultId) {
           setZonaId(zonaDefaultId);
         } else if (zonas.length > 0) {
-          // Preseleccionar la primera zona si existe
           setZonaId(zonas[0].id);
         } else {
-          // Si no hay zonas, vacio ("")
           setZonaId("");
         }
       }
@@ -113,16 +84,6 @@ const MesaFormModal: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validar Capacidad
-    let finalCapacidad =
-      capacidad === "otro" ? Number(otroValor) : (capacidad as number);
-    if (finalCapacidad > 100) finalCapacidad = 100;
-    if (!finalCapacidad || finalCapacidad <= 0) {
-      alert("Ingresa una capacidad válida (Mínimo 1)");
-      return;
-    }
-
-    // 2. Validar Zona
     if (zonaId === "" || zonaId === undefined) {
       alert("Debes seleccionar una zona válida.");
       return;
@@ -133,11 +94,10 @@ const MesaFormModal: React.FC<Props> = ({
       if (modeEdit && editMesaId) {
         // EDITAR
         // Nota: Mantenemos el estado actual si no lo cambiamos (o podríamos pasarlo si el modal lo gestionara)
-        await actualizarMesa(editMesaId, finalCapacidad, finalZonaId);
+        await actualizarMesa(editMesaId, finalZonaId);
       } else {
         // CREAR
         await crearMesa({
-          capacidad: finalCapacidad,
           zonaId: finalZonaId,
         });
       }
@@ -198,7 +158,7 @@ const MesaFormModal: React.FC<Props> = ({
             {/* Campo Nombre (Automático) */}
             <div>
               <label className="block text-sm font-semibold text-gray-500 mb-1">
-                Nombre (Automático)
+                Nombre
               </label>
               <div className="relative">
                 <input
@@ -212,62 +172,6 @@ const MesaFormModal: React.FC<Props> = ({
                   className="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 font-bold cursor-not-allowed select-none"
                 />
               </div>
-            </div>
-
-            {/* Campo Capacidad */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Capacidad de personas
-              </label>
-              <div className="relative">
-                <select
-                  value={capacidad}
-                  onChange={(e) =>
-                    setCapacidad(
-                      e.target.value === "otro"
-                        ? "otro"
-                        : Number(e.target.value)
-                    )
-                  }
-                  className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all appearance-none bg-white text-gray-800 font-medium"
-                >
-                  {predefined.map((n) => (
-                    <option key={n} value={n}>
-                      {n} personas
-                    </option>
-                  ))}
-                  <option value="otro">Personalizada...</option>
-                </select>
-
-                <div className="absolute right-3 top-3 pointer-events-none text-gray-500">
-                  <ChevronDown size={18} />
-                </div>
-              </div>
-
-              {capacidad === "otro" && (
-                <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <input
-                    type="number"
-                    className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-[#FA9623]/20 focus:border-[#FA9623] outline-none transition-all text-sm font-medium"
-                    placeholder="Ingresa el número exacto (Máx 32)"
-                    value={otroValor}
-                    min={1}
-                    max={32}
-                    onChange={(e) => {
-                      const valStr = e.target.value;
-                      if (valStr === "") {
-                        setOtroValor("");
-                        return;
-                      }
-                      let val = parseInt(valStr, 10);
-                      if (val > 32) val = 32;
-                      if (val < 1) val = 1;
-                      setOtroValor(val);
-                    }}
-                    autoFocus
-                  />
-                </div>
-              )}
             </div>
 
             {/* ----------------------------------------------------------------------- */}
