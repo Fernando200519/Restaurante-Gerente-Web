@@ -1,42 +1,54 @@
-import React from 'react';
+import React from "react";
+import { FolderTree, Package } from "lucide-react";
 
 interface MenuTabsProps {
-  activeTab: 'categories' | 'products';
-  onTabChange: (tab: 'categories' | 'products') => void;
+  activeTab: "categories" | "products";
+  onTabChange: (tab: "categories" | "products") => void;
 }
 
 const MenuTabs: React.FC<MenuTabsProps> = ({ activeTab, onTabChange }) => {
+  const tabs = [
+    {
+      id: "categories" as const,
+      label: "Categorías",
+      icon: FolderTree,
+    },
+    {
+      id: "products" as const,
+      label: "Productos",
+      icon: Package,
+    },
+  ];
+
   return (
-    <div className="flex gap-1 border-b border-gray-200 mb-6">
-      <button
-        onClick={() => onTabChange('categories')}
-        className={`px-6 py-3 font-semibold text-sm transition-colors relative ${
-          activeTab === 'categories'
-            ? 'text-primary'
-            : 'text-gray-500 hover:text-gray-700'
-        }`}
-      >
-        Categorías
-        {activeTab === 'categories' && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
-        )}
-      </button>
-      <button
-        onClick={() => onTabChange('products')}
-        className={`px-6 py-3 font-semibold text-sm transition-colors relative ${
-          activeTab === 'products'
-            ? 'text-primary'
-            : 'text-gray-500 hover:text-gray-700'
-        }`}
-      >
-        Productos
-        {activeTab === 'products' && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
-        )}
-      </button>
+    <div className="flex p-1 bg-gray-100/80 rounded-xl w-fit">
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
+
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onTabChange(tab.id)}
+            className={`
+              flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200
+              ${
+                isActive
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50"
+              }
+            `}
+          >
+            <Icon
+              size={18}
+              className={isActive ? "text-[#FF8108]" : "text-gray-400"}
+            />
+            <span>{tab.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 };
 
 export default MenuTabs;
-

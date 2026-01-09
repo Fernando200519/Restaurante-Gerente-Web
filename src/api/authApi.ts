@@ -1,10 +1,10 @@
-// src/api/authApi.ts
 import axios from "axios";
+import { apiClient } from "./config";
 import { LoginRequest, LoginResponse } from "../types/auth";
 
-// 1. LEER LA VARIABLE DE ENTORNO
-// Usamos "||" como respaldo por si por alguna razón falla la lectura.
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://137.184.191.81";
+
+// axios.defaults.withCredentials = true;
 
 export const login = async (
   credentials: LoginRequest
@@ -19,16 +19,13 @@ export const login = async (
   return data;
 };
 
-export const refreshSession = async (tokenVencido: string): Promise<string> => {
-  const rawBody = `"${tokenVencido}"`;
-
+export const refreshSession = async (): Promise<string> => {
   const response = await fetch(`${API_BASE_URL}/refresh`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: rawBody,
+    credentials: "omit",
   });
 
   if (!response.ok) {
@@ -39,4 +36,26 @@ export const refreshSession = async (tokenVencido: string): Promise<string> => {
 
   const data: LoginResponse = await response.json();
   return data.accessToken;
+};
+
+export const forgotPassword = async (
+  email: string,
+  clientUri: string
+): Promise<void> => {
+  await axios.post(`${API_BASE_URL}/password/forgot`, {
+    email,
+    clientUri,
+  });
+};
+
+export const resetPassword = async (resetData: any): Promise<void> => {
+  await axios.post(`${API_BASE_URL}/password/reset`, resetData);
+};
+
+export const updatePassword = async (passwordData: {
+  contraseñaActual: string;
+  contraseñaNueva: string;
+  confirmacionContraseñaNueva: string;
+}): Promise<void> => {
+  await apiClient.post(`/users/me/update-password`, passwordData);
 };

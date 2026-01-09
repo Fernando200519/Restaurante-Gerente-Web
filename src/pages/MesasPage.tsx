@@ -1,11 +1,12 @@
-// src/pages/MesasPage.tsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { MesasProvider } from "../context/MesasContext";
 import { useMesas } from "../hooks/useMesas";
+import { useFilteredMesas } from "../hooks/useFilteredMesas";
 import MesaFormModal from "../components/tables/MesaFormModal";
 import MesaModal from "../components/tables/mesa-modal/MesaModal";
 import { MesaCard } from "../components/tables/MesaCard";
 import ZonasModal from "../components/tables/zona-modal/ZonaModal";
+import { Settings2, Plus } from "lucide-react";
 
 const Inner = () => {
   const {
@@ -21,266 +22,238 @@ const Inner = () => {
     eliminarZonaConMesas,
     toggleEstadoZona,
     refreshAll,
+    lastCreatedId,
   } = useMesas();
 
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [detailMesaId, setDetailMesaId] = useState<number | null>(null);
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [zonasModalOpen, setZonasModalOpen] = useState(false);
+  const {
+    filteredData,
+    zonaSeleccionada,
+    setZonaSeleccionada,
+    stats,
+    estadoSeleccionado,
+    setEstadoSeleccionado,
+  } = useFilteredMesas();
 
-  const [zonaSeleccionadaNombre, setZonaSeleccionadaNombre] =
-    useState<string>("Todas");
+  const [modals, setModals] = useState({
+    add: false,
+    zonas: false,
+    detailId: null as number | null,
+    detailVisible: false,
+  });
 
-  const sinZonaObj = zonas.find(
-    (z) => z.nombre.trim().toLowerCase() === "sin zona"
+  const hasOrphanTables = mesas.some(
+    (m) => m.zona?.toLowerCase() === "sin zona"
   );
-  const hayMesasSinZona = mesas.some(
-    (m) => m.zona && m.zona.trim().toLowerCase() === "sin zona"
-  );
 
-  const nombreSinZona = sinZonaObj?.nombre || "Sin Zona";
+  const visibleZonas = zonas.filter((z) => {
+    const isSinZona = z.nombre.toLowerCase() === "sin zona";
+    if (!isSinZona) return true;
 
-  const getNombreZona = (mesaZona: string | undefined, id: number | null) => {
-    if (mesaZona && mesaZona.trim().toLowerCase() !== "sin zona") {
-      return mesaZona;
-    }
-    return zonas.find((z) => z.id === id)?.nombre || nombreSinZona;
-  };
+    return mesas.some(
+      (m) => m.zonaId === z.id || m.zona?.toLowerCase() === "sin zona"
+    );
+  });
 
-  const disabledZonesIds = useMemo(() => {
-    return zonas.filter((z) => z.estado === "Inactiva").map((z) => z.id);
-  }, [zonas]);
-  const mesasFiltradas = useMemo(() => {
-    let resultado = mesas.map((m) => ({
-      ...m,
-      nombreZona: getNombreZona(m.zona, m.zonaId),
-    }));
-
-    if (zonaSeleccionadaNombre !== "Todas") {
-      resultado = resultado.filter(
-        (m) => m.nombreZona === zonaSeleccionadaNombre
-      );
-    } else {
-      const idSinZona = zonas.find(
-        (z) => z.nombre === "Sin Zona" || z.nombre === "Sin zona"
-      )?.id;
-
-      resultado = resultado.filter((m) => {
-        if (idSinZona && m.zonaId === idSinZona) return true;
-        if (m.zonaId === null) return true;
-
-        return !disabledZonesIds.includes(m.zonaId);
-      });
-    }
-
-    return resultado.sort((a, b) => {
-      const alertA = a.orden?.totalAlertas || 0;
-      const alertB = b.orden?.totalAlertas || 0;
-      if (alertA !== alertB) return alertB - alertA;
-
-      const numA = parseInt(a.nombre.replace(/\D/g, ""), 10) || 0;
-      const numB = parseInt(b.nombre.replace(/\D/g, ""), 10) || 0;
-      return numA - numB;
-    });
-  }, [mesas, zonas, zonaSeleccionadaNombre, disabledZonesIds]);
-
-  const total = mesasFiltradas.length;
-  const libres = mesasFiltradas.filter((m) => m.estado === "LIBRE").length;
-  const ocupadas = mesasFiltradas.filter((m) => m.estado === "OCUPADA").length;
-  const esperando = mesasFiltradas.filter(
-    (m) => m.estado === "ESPERANDO"
-  ).length;
-  const grupos = mesasFiltradas.filter((m) => m.estado === "AGRUPADA").length;
-
-  const openDetail = (id: number) => {
-    setDetailMesaId(id);
-    setDetailVisible(true);
-  };
-
-  const nombresZonasTabs = useMemo(() => {
-    const tabs = ["Todas"];
-    if (hayMesasSinZona) {
-      tabs.push(nombreSinZona);
-    }
-
-    zonas.forEach((z) => {
-      const nombreLower = z.nombre.trim().toLowerCase();
-      if (nombreLower === "sin zona") return;
-      tabs.push(z.nombre);
-    });
-
-    return tabs;
-  }, [zonas, hayMesasSinZona, nombreSinZona, sinZonaObj]);
-
-  const zonaActualObj = zonas.find((z) => z.nombre === zonaSeleccionadaNombre);
-
-  const isZonaDeshabilitada = zonaActualObj
-    ? disabledZonesIds.includes(zonaActualObj.id)
-    : false;
-
-  const showKpis =
-    zonaSeleccionadaNombre !== nombreSinZona && !isZonaDeshabilitada;
-
-  // -------------------------------------------------------------
-  // 2. POLLING INTELIGENTE
-  // -------------------------------------------------------------
+  // 🚀 LÓGICA DE AUTO-SCROLL
   useEffect(() => {
-    const intervalo = setInterval(() => {
-      if (!detailMesaId) {
-        refreshAll(false);
-      }
-    }, 5000);
+    if (lastCreatedId) {
+      // Esperamos un momento mínimo a que el DOM se renderice
+      const timer = setTimeout(() => {
+        const element = document.getElementById(
+          `mesa-container-${lastCreatedId}`
+        );
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center", // Centra la mesa en la pantalla para mejor visibilidad
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [lastCreatedId]);
 
-    return () => clearInterval(intervalo);
-  }, [refreshAll, detailMesaId]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!modals.detailId) refreshAll(false);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refreshAll, modals.detailId]);
 
   if (loading)
     return (
-      <div className="p-10 text-center text-gray-500">
-        Cargando restaurante...
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-pulse text-gray-400 font-bold text-xl">
+          Cargando restaurante...
+        </div>
       </div>
     );
 
+  const handleToggleFilter = (estado: string | null) => {
+    if (estado === null) {
+      setEstadoSeleccionado(null);
+    } else {
+      setEstadoSeleccionado(estadoSeleccionado === estado ? null : estado);
+    }
+  };
+
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-100">
-        <div className="flex flex-1 items-center min-w-0 space-x-2">
-          {/* BTN ZONAS */}
+    <div className="space-y-8 pb-10 animate-in fade-in duration-500">
+      {/* 🛠️ HEADER / TOOLBAR */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        {/* 🚀 CORRECCIÓN: Quitamos 'overflow-hidden' de este div para que el badge no se corte */}
+        <div className="flex flex-1 items-center gap-4">
+          {/* BOTÓN CONFIGURACIÓN CON ALERTA */}
           <button
-            onClick={() => setZonasModalOpen(true)}
-            className="shrink-0 p-2 hover:bg-gray-100 rounded-full transition text-gray-600 cursor-pointer"
+            onClick={() => setModals((m) => ({ ...m, zonas: true }))}
+            className="relative p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-all cursor-pointer group z-10"
             title="Gestionar zonas"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
+            {/* 🔄 LÍNEA DE ROTACIÓN: 'group-hover:rotate-45' hace que rote al poner el mouse en el botón */}
+            <Settings2 size={20} className=" ease-in-out" />
+
+            {/* 🔴 Badge de Alerta Pro */}
+            {hasOrphanTables && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-20">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 border-2 border-white shadow-md"></span>
+              </span>
+            )}
           </button>
 
-          {/* Lista de zonas (Tabs) */}
-          <div className="flex flex-1 items-center gap-8 overflow-x-auto custom-scrollbar w-0 pr-4">
-            {nombresZonasTabs.map((nombre) => {
-              const zonaObj = zonas.find((z) => z.nombre === nombre);
-
-              const isDisabled = zonaObj
-                ? disabledZonesIds.includes(zonaObj.id)
-                : false;
-              const isSelected = zonaSeleccionadaNombre === nombre;
-
-              return (
-                <button
-                  key={nombre}
-                  onClick={() => setZonaSeleccionadaNombre(nombre)}
-                  className={`shrink-0 pb-1 text-[18px] font-bold transition 
-                    ${
-                      isSelected
-                        ? "text-[#FA9623] border-b-2 border-[#FA9623] cursor-pointer"
-                        : "text-gray-400 hover:text-gray-600 cursor-pointer"
-                    }
-                    ${
-                      isDisabled
-                        ? "opacity-40 grayscale cursor-context-menu"
-                        : ""
-                    } 
-                  `}
-                >
-                  {nombre}
-                </button>
-              );
-            })}
-          </div>
+          {/* nav con su propio scroll y overflow si es necesario */}
+          <nav className="flex flex-1 items-center gap-6 overflow-x-auto no-scrollbar border-l pl-4 border-gray-100">
+            {["Todas", ...visibleZonas.map((z) => z.nombre)].map((nombre) => (
+              <button
+                key={nombre}
+                onClick={() => setZonaSeleccionada(nombre)}
+                className={`text-sm font-black whitespace-nowrap transition-all pb-2 border-b-2 cursor-pointer ${
+                  zonaSeleccionada === nombre
+                    ? "text-[#FF8108] border-[#FF8108]"
+                    : "text-gray-400 border-transparent hover:text-gray-600"
+                }`}
+              >
+                {nombre}
+              </button>
+            ))}
+          </nav>
         </div>
 
-        {/* Agregar Mesa */}
+        {/* Botón Agregar Mesa */}
         <button
-          onClick={() => setAddModalOpen(true)}
-          className="shrink-0 px-4 py-2 bg-[#FA9623] text-[18px] text-white rounded-lg font-medium hover:bg-[#e68a1f] transition shadow-sm flex items-center gap-2 cursor-pointer"
+          onClick={() => setModals((m) => ({ ...m, add: true }))}
+          className="bg-[#FF8108] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:scale-[1.02] transition-all active:scale-95 cursor-pointer whitespace-nowrap"
         >
-          <span className="text-xl">+</span> Agregar Mesa
+          <Plus size={22} strokeWidth={3} /> Agregar Mesa
         </button>
-      </div>
+      </header>
 
-      {/* KPIs (Ocultar si es Todas o Sin Zona según tu lógica antigua, o ajustar aquí) */}
-      {showKpis && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <KpiCard title="Total Mesas" value={total} color="text-gray-800" />
-          <KpiCard title="Libres" value={libres} color="text-[#22C55E]" />
-          <KpiCard title="Ocupadas" value={ocupadas} color="text-[#EF4444]" />
-          <KpiCard title="Esperando" value={esperando} color="text-[#F59E0B]" />
-          <KpiCard title="Grupos" value={grupos} color="text-[#A855F7]" />
-          <KpiCard title="Reservadas" value="..." color="text-gray-800" />
-        </div>
+      {/* 📊 PANEL DE ESTADOS (KPIs) */}
+      {zonaSeleccionada.toLowerCase() !== "sin zona" && (
+        <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <KpiCard
+            title="Total"
+            value={stats.total}
+            color="bg-gray-900"
+            borderColor="border-gray-900"
+            isActive={estadoSeleccionado === null}
+            onClick={() => handleToggleFilter(null)}
+          />
+          <KpiCard
+            title="Libres"
+            value={stats.libres}
+            color="bg-emerald-500"
+            borderColor="border-emerald-500"
+            isActive={estadoSeleccionado === "LIBRE"}
+            onClick={() => handleToggleFilter("LIBRE")}
+          />
+          <KpiCard
+            title="Ocupadas"
+            value={stats.ocupadas}
+            color="bg-red-500"
+            borderColor="border-red-500"
+            isActive={estadoSeleccionado === "OCUPADA"}
+            onClick={() => handleToggleFilter("OCUPADA")}
+          />
+          <KpiCard
+            title="Por Cobrar"
+            value={stats.esperando || 0}
+            color="bg-yellow-500"
+            borderColor="border-yellow-500"
+            isActive={estadoSeleccionado === "ESPERANDO_PAGO"}
+            onClick={() => handleToggleFilter("ESPERANDO_PAGO")}
+          />
+          <KpiCard
+            title="Grupos"
+            value={stats.grupos}
+            color="bg-purple-500"
+            borderColor="border-purple-500"
+            isActive={estadoSeleccionado === "AGRUPADA"}
+            onClick={() => handleToggleFilter("AGRUPADA")}
+          />
+        </section>
       )}
 
-      {/* GRID Mesas */}
-      <div className="rounded-2xl">
-        {mesasFiltradas.length === 0 ? (
-          <div className="text-center text-gray-400 py-10">
-            No hay mesas aquí.
+      {/* GRID DE MESAS */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+        {filteredData.length === 0 ? (
+          <div className="col-span-full py-20 text-center text-gray-400 font-medium italic">
+            No hay mesas disponibles en esta sección.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
-            {mesasFiltradas.map((mesa) => {
-              const zonaObj = zonas.find((z) => z.nombre === mesa.nombreZona);
-              const estaDeshabilitada = zonaObj?.estado === "Inactiva";
-
-              return (
-                <div key={mesa.id} className="relative animate-fadeIn">
-                  <div
-                    onClick={() => openDetail(mesa.id)}
-                    className="cursor-pointer transition hover:scale-[1.02]"
-                  >
-                    <MesaCard
-                      mesa={{ ...mesa, zona: mesa.nombreZona }}
-                      // Pasamos el valor calculado arriba
-                      zonaDeshabilitada={estaDeshabilitada}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          filteredData.map((mesa) => {
+            const isNew = mesa.id === lastCreatedId;
+            return (
+              <div
+                key={mesa.id}
+                id={`mesa-container-${mesa.id}`}
+                onClick={() =>
+                  setModals((m) => ({
+                    ...m,
+                    detailId: mesa.id,
+                    detailVisible: true,
+                  }))
+                }
+                className={`cursor-pointer transition-all ${
+                  isNew ? "animate-new-table z-10 scale-105" : ""
+                }`}
+              >
+                <MesaCard
+                  mesa={mesa}
+                  isNew={isNew}
+                  zonaDeshabilitada={
+                    zonas.find((z) => z.id === mesa.zonaId)?.estado ===
+                    "Inactiva"
+                  }
+                />
+              </div>
+            );
+          })
         )}
-      </div>
+      </section>
 
+      {/* 📦 MODALES */}
       <MesaFormModal
-        visible={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        visible={modals.add}
+        onClose={() => setModals((m) => ({ ...m, add: false }))}
         zonas={zonas}
-        zonaDefaultId={
-          zonaSeleccionadaNombre !== "Todas"
-            ? zonas.find((z) => z.nombre === zonaSeleccionadaNombre)?.id
-            : undefined
-        }
-        onSubmit={crearMesa}
+        zonaDefaultId={zonas.find((z) => z.nombre === zonaSeleccionada)?.id}
       />
 
-      {detailMesaId && (
+      {modals.detailId && (
         <MesaModal
-          mesa={mesas.find((m) => m.id === detailMesaId) ?? null}
-          visible={detailVisible}
+          mesa={filteredData.find((m) => m.id === modals.detailId) ?? null}
+          visible={modals.detailVisible}
           zonas={zonas}
-          onClose={() => {
-            setDetailVisible(false);
-            setDetailMesaId(null);
-          }}
+          onClose={() =>
+            setModals((m) => ({ ...m, detailVisible: false, detailId: null }))
+          }
         />
       )}
 
       <ZonasModal
-        visible={zonasModalOpen}
-        onClose={() => setZonasModalOpen(false)}
+        visible={modals.zonas}
+        onClose={() => setModals((m) => ({ ...m, zonas: false }))}
         zonas={zonas}
         crearZona={crearZona}
         actualizarZona={actualizarZona}
@@ -296,15 +269,50 @@ const KpiCard = ({
   title,
   value,
   color,
+  borderColor,
+  isActive,
+  onClick,
 }: {
   title: string;
-  value: string | number;
+  value: number;
   color: string;
+  borderColor: string;
+  isActive: boolean;
+  onClick: () => void;
 }) => (
-  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center">
-    <div className="text-[18px] text-gray-400 font-bold">{title}</div>
-    <div className={`text-2xl font-bold ${color}`}>{value}</div>
-  </div>
+  <button
+    onClick={onClick}
+    className={`relative bg-white p-5 rounded-3xl border-2 transition-all duration-300 flex items-center gap-4 cursor-pointer text-left w-full group
+      ${
+        isActive
+          ? `${borderColor} shadow-xl shadow-gray-100 scale-[1.03] z-10`
+          : "border-transparent shadow-sm hover:border-gray-100 hover:-translate-y-1"
+      }`}
+  >
+    {/* Indicador lateral que se ensancha al estar activo */}
+    <div
+      className={`transition-all duration-300 rounded-full ${color} ${
+        isActive ? "w-2.5 h-12" : "w-1.5 h-8 opacity-40"
+      }`}
+    />
+
+    <div className="flex flex-col">
+      <p
+        className={`text-[10px] uppercase tracking-[0.15em] font-black transition-colors ${
+          isActive ? "text-gray-900" : "text-gray-400"
+        }`}
+      >
+        {title}
+      </p>
+      <p
+        className={`text-3xl font-black tabular-nums tracking-tighter transition-colors ${
+          isActive ? "text-gray-900" : "text-gray-700"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  </button>
 );
 
 const MesasPageWrapper: React.FC = () => (

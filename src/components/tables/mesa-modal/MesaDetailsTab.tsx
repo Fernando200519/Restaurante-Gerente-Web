@@ -1,54 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { PlatilloRow } from "./PlatilloRow";
-import { OrderBackend } from "../../../api/ordersApi";
-import { Mesa } from "../../../types/mesa";
-import { Users, Clock, User, DollarSign } from "lucide-react";
+import { Order, OrderItem } from "../../../types/order";
+import { Users, Clock, User, DollarSign, UtensilsCrossed } from "lucide-react";
 
 interface Props {
-  orderBackend: OrderBackend | null;
-  localMesa: Mesa;
+  orderData: Order | null;
+  loading: boolean;
 }
 
-const estadoBadgeStyles: Record<string, string> = {
-  LIBRE: "bg-green-100 text-green-700 border-green-300",
-  OCUPADA: "bg-red-100 text-red-700 border-red-300",
-  ESPERANDO: "bg-yellow-100 text-yellow-700 border-yellow-300",
-  AGRUPADA: "bg-purple-100 text-purple-700 border-purple-300",
-  INACTIVA: "bg-gray-100 text-gray-500 border-gray-300",
-  DESACTIVADA: "bg-gray-100 text-gray-500 border-gray-300",
-};
-
-export const MesaDetailsTab: React.FC<Props> = ({
-  orderBackend,
-  localMesa,
-}) => {
-  const [, setTick] = useState(0);
-
-  // Actualizador para el "Hace X min" cada 60s
-  useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // ---------------------------------------------------------
-  // 1. CORRECCIÓN DE HORA (La "Hora Rebelde")
-  // ---------------------------------------------------------
-  const parseUTC = (iso: string) => {
-    if (!iso) return new Date();
-
-    // 1. Quitamos espacios extra
-    let cleanIso = iso.trim().replace(" ", "T");
-
-    // 2. CORRECCIÓN: Si no termina en Z, se la ponemos SIEMPRE.
-    // Tu backend manda: "2025-12-06T23:47:54.306281"
-    // Al agregar Z queda: "2025-12-06T23:47:54.306281Z" (Esto es UTC)
-    // El navegador detectará que es UTC y le restará las 6 horas de México automáticamente.
-    if (!cleanIso.endsWith("Z")) {
-      cleanIso += "Z";
-    }
-
-    return new Date(cleanIso);
-  };
+export const MesaDetailsTab: React.FC<Props> = ({ orderData, loading }) => {
+  const groupedItems = useMemo(() => {
+    const items = orderData?.items ?? [];
+    return items.reduce((acc: Record<string, OrderItem[]>, item) => {
+      const comensal = item.comensal || "General";
+      if (!acc[comensal]) acc[comensal] = [];
+      acc[comensal].push(item);
+      return acc;
+    }, {});
+  }, [orderData]);
 
   const formatCurrency = (n: number) =>
     n.toLocaleString("es-MX", {
@@ -57,150 +26,135 @@ export const MesaDetailsTab: React.FC<Props> = ({
       minimumFractionDigits: 2,
     });
 
-  const formatFechaConTiempoRelativo = (iso: string) => {
-    // Usamos la función corregida
-    const d = parseUTC(iso);
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 space-y-4">
+        <div className="w-12 h-12 border-4 border-orange-100 border-t-[#FF8108] rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+          Cargando Comanda...
+        </p>
+      </div>
+    );
+  }
 
-    const fechaTexto = d.toLocaleString("es-MX", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    // Calcular tiempo relativo
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    let textoRelativo = "";
-    // Si la diferencia es negativa o muy pequeña (menos de 1 min)
-    if (diffMins < 1) textoRelativo = "Hace un momento";
-    else if (diffMins < 60) textoRelativo = `Hace ${diffMins} min`;
-    else {
-      const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) textoRelativo = `Hace ${diffHours} h`;
-      else {
-        const diffDays = Math.floor(diffHours / 24);
-        textoRelativo = `Hace ${diffDays} días`;
-      }
-    }
-
-    return `${fechaTexto} (${textoRelativo})`;
-  };
-
-  const currentBadgeStyle =
-    estadoBadgeStyles[localMesa.estado] || estadoBadgeStyles.LIBRE;
+  if (!orderData) {
+    return (
+      <div className="bg-white rounded-[2.5rem] border-4 border-dashed border-gray-100 p-16 text-center animate-in fade-in">
+        <UtensilsCrossed size={48} className="mx-auto text-gray-200 mb-6" />
+        <p className="text-gray-400 font-bold uppercase text-[12px] tracking-[0.3em]">
+          Mesa Libre sin Comanda Activa
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Información General (DISEÑO ORIGINAL DE LISTA) */}
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
-        {/* Fila 1: Estado */}
-        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-          <span className="text-gray-600 font-medium text-lg">
-            Estado de Mesa:
-          </span>
-          <span
-            className={`px-3 py-1 rounded-full font-bold uppercase text-xs tracking-wider border ${currentBadgeStyle}`}
-          >
-            {localMesa.estado}
-          </span>
+    <div className="space-y-10 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* ✅ CORRECCIÓN: Usamos totalComensales en lugar de guestName */}
+        <InfoCard
+          icon={<Users size={20} />}
+          label="Comensales"
+          value={`${orderData.totalComensales ?? 0} Personas`}
+          color="text-blue-600"
+        />
+
+        <InfoCard
+          icon={<User size={20} />}
+          label="Mesero"
+          value={orderData.waiter}
+          color="text-purple-600"
+        />
+
+        <div className="md:col-span-2">
+          {/* La hora ya te aparece bien (8:38 AM) gracias al ajuste anterior en el API */}
+          <InfoCard
+            icon={<Clock size={20} />}
+            label="Apertura de Cuenta"
+            value={`${orderData.date} a las ${orderData.time}`}
+            color="text-[#FF8108]"
+          />
         </div>
-
-        {orderBackend && (
-          <>
-            {/* Fila 2: Comensales */}
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium flex items-center gap-2">
-                <Users size={16} className="text-blue-500" />
-                Comensales:
-              </span>
-              <span className="text-gray-800 font-bold text-lg">
-                {orderBackend.totalComensales}
-              </span>
-            </div>
-
-            {/* Fila 3: Mesero */}
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 font-medium flex items-center gap-2">
-                <User size={16} className="text-blue-500" />
-                Mesero Asignado:
-              </span>
-              <span className="text-gray-800 font-bold">
-                {orderBackend.mesero}
-              </span>
-            </div>
-
-            {/* Fila 4: Hora de Apertura */}
-            <div className="flex justify-between items-start">
-              <span className="text-gray-600 font-medium flex items-center gap-2 mt-1">
-                <Clock size={16} className="text-blue-500" />
-                Hora de Apertura:
-              </span>
-              <span className="text-gray-800 font-bold text-right text-sm sm:text-base">
-                {/* Aquí renderizamos la hora corregida */}
-                {formatFechaConTiempoRelativo(orderBackend.fechaHora ?? "")}
-              </span>
-            </div>
-          </>
-        )}
-
-        {!orderBackend && (
-          <div className="text-center text-gray-400 py-2 italic text-sm">
-            Sin información de orden.
-          </div>
-        )}
       </div>
 
-      {/* Lista de platillos */}
-      {orderBackend?.detallesOrden?.length ? (
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-          <h4 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">
-            Platillos
-          </h4>
-          <div className="divide-y divide-gray-50">
-            {orderBackend.detallesOrden.map((d) => (
-              <PlatilloRow
-                key={d.id}
-                producto={d.producto ?? "Desconocido"}
-                cantidad={d.cantidad || 1}
-                comensal={d.comensal ?? "N/A"}
-                estado={d.estado}
-                total={d.total}
-                // También aplicamos la corrección aquí por si acaso se usa dentro
-                fechaHora={parseUTC(
-                  d.fechaHoraInicioEstado ?? ""
-                ).toISOString()}
-              />
-            ))}
-          </div>
-        </div>
-      ) : orderBackend ? (
-        <div className="text-center text-gray-400 py-10">
-          La orden está abierta, pero no se han agregado platillos.
-        </div>
-      ) : null}
+      {/* 📋 LISTA POR COMENSAL */}
+      <div className="space-y-6">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 ml-2">
+          Detalle por Persona
+        </h4>
 
-      {/* Total */}
-      {orderBackend && (
-        <div className="bg-[#fff9f4] rounded-xl p-4 border border-[#FA9623]/30 flex justify-between items-center shadow-sm">
-          <span className="text-gray-700 font-bold flex items-center gap-2">
-            <DollarSign size={20} className="text-green-600" />
-            Total de la Cuenta:
-          </span>
-          <span className="text-3xl font-black text-gray-900 tabular-nums">
-            {formatCurrency(
-              (orderBackend.detallesOrden ?? []).reduce(
-                (acc, d) => acc + d.total,
-                0
-              )
-            )}
+        {Object.entries(groupedItems).map(([comensal, items]) => (
+          <div
+            key={comensal}
+            className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm"
+          >
+            <div className="bg-gray-50/80 px-6 py-3 border-b border-gray-100 flex justify-between items-center">
+              <span className="text-xs font-black uppercase tracking-widest text-gray-600 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#FF8108]" />
+                {comensal}
+              </span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {items.map((item) => (
+                <PlatilloRow
+                  key={item.id}
+                  producto={item.name}
+                  cantidad={1}
+                  comensal={item.comensal}
+                  estado={item.status}
+                  total={item.price}
+                  fechaHora={item.fechaHoraInicioEstado ?? ""}
+                />
+              ))}
+            </div>
+            <div className="px-6 py-3 bg-white text-right border-t border-gray-50">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mr-3">
+                Subtotal Persona:
+              </span>
+              <span className="text-sm font-black text-gray-900 tabular-nums">
+                {formatCurrency(
+                  items.reduce((sum, i) => sum + (i.price ?? 0), 0)
+                )}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 💰 TOTAL ACUMULADO */}
+      <div className="bg-gray-900 rounded-[2.5rem] p-8 flex justify-between items-center shadow-2xl relative overflow-hidden">
+        <div className="relative z-10">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400/80 mb-1">
+            Cierre de Cuenta
+          </p>
+          <h3 className="text-white font-black text-xl uppercase italic">
+            Total Acumulado
+          </h3>
+        </div>
+        <div className="text-right relative z-10">
+          <span className="text-4xl font-black text-white tabular-nums tracking-tighter">
+            {formatCurrency(orderData.price)}
           </span>
         </div>
-      )}
+        <DollarSign
+          className="absolute -left-4 -bottom-4 text-white/5"
+          size={120}
+        />
+      </div>
     </div>
   );
 };
+
+const InfoCard = ({ icon, label, value, color }: any) => (
+  <div className="bg-white p-5 rounded-3xl border border-gray-100 flex items-center gap-4">
+    <div className={`p-3 rounded-2xl bg-gray-50 ${color}`}>{icon}</div>
+    <div>
+      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+        {label}
+      </p>
+      <p className="text-sm font-black text-gray-900 uppercase truncate">
+        {value}
+      </p>
+    </div>
+  </div>
+);

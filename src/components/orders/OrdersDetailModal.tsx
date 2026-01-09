@@ -1,8 +1,18 @@
-// src/components/orders/OrderDetailsModal.tsx
-import React from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  X,
+  Clock,
+  DollarSign,
+  User,
+  History,
+  Hash,
+  Calendar,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-react";
 import { Order } from "../../types/order";
-import { useEffect } from "react";
+import { formatTimeAmPm } from "../../utils/time";
+import { useOrders } from "../../hooks/useOrders";
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
@@ -15,189 +25,214 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   onClose,
   order,
 }) => {
-  // Manejo robusto del overflow del body: guardamos el valor previo y lo restauramos.
+  const { fetchOrderDetail } = useOrders(); // ✅ Asegúrate que useOrders exporte esta función
+  const [detail, setDetail] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // 🛡️ FIX SCROLL: Bloqueo agresivo del fondo
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    if (isOpen) document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
+    const lockScroll = () => {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden"; // Bloqueo extra para navegadores modernos
     };
+
+    const unlockScroll = () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+
+    if (isOpen) lockScroll();
+    else unlockScroll();
+
+    return unlockScroll; // Limpieza al desmontar
   }, [isOpen]);
+
+  // 🔄 CARGA DE DATOS: Trazabilidad
+  useEffect(() => {
+    const getTrazabilidad = async () => {
+      if (isOpen && order?.id) {
+        setLoading(true);
+        setDetail(null); // Limpiamos datos viejos antes de cargar
+        const data = await fetchOrderDetail(order.id);
+
+        // 🎯 NOTA: getOrderDetailById ya devuelve el objeto data[0]
+        setDetail(data);
+        setLoading(false);
+      }
+    };
+    getTrazabilidad();
+  }, [isOpen, order?.id, fetchOrderDetail]);
+
+  const processTime = useMemo(() => {
+    if (!detail?.historialEstados || detail.historialEstados.length < 2)
+      return 0;
+    const start = new Date(detail.historialEstados[0].fechaHora).getTime();
+    const end = new Date(
+      detail.historialEstados[detail.historialEstados.length - 1].fechaHora
+    ).getTime();
+    return Math.max(0, Math.floor((end - start) / (1000 * 60)));
+  }, [detail]);
 
   if (!isOpen || !order) return null;
 
-  // Calculamos el total sumando las duraciones que YA vienen en el historial
-  const totalDuration = order.history.reduce(
-    (acc, step) => acc + step.duration,
-    0
-  );
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-999 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-gray-900/80 backdrop-blur-[1px] animate-in fade-in"
         onClick={onClose}
       />
 
-      {/* Modal Content */}
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* --- HEADER --- */}
-        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
+      <div className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* HEADER */}
+        <div className="px-10 py-8 border-b border-gray-100 bg-gray-50/30 flex justify-between items-start">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              {/* MESA */}
-              <span className="px-2.5 py-0.5 rounded-md bg-[#F59E0B] text-white text-base font-semibold">
-                {order.tableId}
-              </span>
-
-              {/* CATEGORÍA */}
-              <span className="text-base text-gray-500 font-medium">
-                {order.items[0].category}
-              </span>
-
-              {/* 🔥 FECHA AGREGADA */}
-              <div className="flex items-center gap-1.5 text-gray-500">
-                <span className="text-base font-medium">{order.date}</span>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="bg-[#FF8108] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-100">
+                <Hash size={12} className="inline mr-1" /> Mesa {order.tableId}
+              </div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-white px-3 py-1 rounded-lg border border-gray-100">
+                <Calendar size={12} className="inline mr-1" /> {order.date}
               </div>
             </div>
-
-            {/* NOMBRE DEL PLATILLO */}
-            <h2 className="text-3xl mt-2 font-bold text-gray-900 leading-tight">
-              {order.items.map((i) => i.name).join(" + ")}
+            <h2 className="text-4xl font-black text-gray-900 uppercase italic tracking-tighter">
+              {order.items[0].name}
             </h2>
-
-            {/* 🔥 COMENSAL AGREGADO */}
-            <p className="text-gray-500 mt-1 flex items-center gap-2">
-              Para:{" "}
-              <span className="text-gray-900 font-semibold">
-                {order.guestName}
-              </span>
-            </p>
           </div>
-
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+            className="p-3 rounded-2xl bg-white text-gray-400 hover:text-[#FF8108] shadow-sm transition-all cursor-pointer"
           >
-            <X size={24} />
+            <X size={24} strokeWidth={3} />
           </button>
         </div>
 
-        <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* --- COLUMNA IZQUIERDA: Detalles --- */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Grid de Métricas */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* PRECIO (Viene de la API) */}
-              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                <div className="flex items-center gap-2 text-gray-400 mb-1">
-                  <span className="text-base font-semibold">Precio Total</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${order.price.toFixed(2)}
-                </p>
-              </div>
-
-              {/* TIEMPO TOTAL (Calculado del historial) */}
-              <div className="p-4 rounded-xl bg-white border border-[#F59E0B]">
-                <div className="flex items-center gap-2 text-[#F59E0B] mb-1">
-                  <span className="text-base font-semibold">Tiempo Total</span>
-                </div>
-                <p className="text-2xl font-bold text-[#F59E0B]">
-                  {totalDuration} min
-                </p>
-              </div>
+        <div className="p-10 overflow-y-auto no-scrollbar grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* MÉTRICAS */}
+          <div className="lg:col-span-7 space-y-10">
+            <div className="grid grid-cols-2 gap-4">
+              <MetricCard
+                icon={<DollarSign size={16} />}
+                label="Inversión Total"
+                value={`$${detail?.total?.toFixed(2) || "0.00"}`}
+              />
+              <MetricCard
+                icon={<Clock size={16} />}
+                label="Tiempo Proceso"
+                value={`${processTime} min`}
+              />
             </div>
 
-            {/* Modificadores (Vienen de la API) */}
-            {order.modifiers.length > 0 && (
-              <div>
-                <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  Notas Adicionales
-                </h4>
-                <div className="rounded-xl p-2">
-                  <ul className="space-y-2">
-                    {order.modifiers.map((mod, index) => (
-                      <li
-                        key={index}
-                        className="flex items-center gap-2 text-amber-800 text-sm font-medium"
-                      >
-                        <span className="rounded-full bg-[#F59E0B] w-2.5 h-2.5 inline-block"></span>
-                        {mod}
-                      </li>
-                    ))}
-                  </ul>
+            {/* 👤 SECCIÓN RESPONSABLE ACTUALIZADA CON FOTO */}
+            <div className="flex items-center justify-between p-6 rounded-4xl border-2 border-dashed border-gray-100 bg-gray-50/30">
+              <div className="flex items-center gap-4">
+                {/* Contenedor de Imagen de Perfil */}
+                <div className="w-14 h-14 rounded-full bg-gray-900 flex items-center justify-center text-white shadow-xl overflow-hidden border-4 border-white shrink-0">
+                  {/* Validamos foto desde el detalle extendido o la orden básica */}
+                  {detail?.fotoPerfilMesero || order.waiterPhoto ? (
+                    <img
+                      src={detail?.fotoPerfilMesero || order.waiterPhoto}
+                      alt={detail?.empleado || order.waiter}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <User size={24} strokeWidth={3} />
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-[9px] font-black uppercase text-gray-400 tracking-[0.2em]">
+                    Responsable de Orden
+                  </p>
+                  <p className="text-lg font-black text-gray-800 uppercase italic tracking-tight">
+                    {detail?.empleado || order.waiter}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] font-bold text-[#FF8108] uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF8108] animate-pulse" />
+                    Comensal: {detail?.comensal || "General"}
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Información del Mesero */}
-            <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-100">
-              <div>
-                <p className="text-base text-gray-600 font-semibold">Mesero</p>
-                <p className="text-gray-900 font-medium">{order.waiter}</p>
-              </div>
+              <CheckCircle2 className="text-emerald-500 opacity-20" size={36} />
             </div>
           </div>
 
-          {/* --- COLUMNA DERECHA: Timeline Vertical --- */}
-          <div className="lg:col-span-1 border-l border-gray-100 pl-4">
-            <h4 className="text-[18px] font-bold text-gray-900 mb-6">
-              Historial de Estado
-            </h4>
+          {/* TIMELINE REAL */}
+          <div className="lg:col-span-5">
+            <div className="bg-gray-50/30 p-8 rounded-4xl border border-gray-100 h-full min-h-[300px]">
+              <h4 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-8 flex items-center gap-2">
+                <History size={16} className="text-[#FF8108]" /> Trazabilidad
+              </h4>
 
-            <div className="relative space-y-0">
-              {/* Línea vertical conectora */}
-              <div className="absolute top-2 bottom-2 left-[11px] w-0.5 bg-gray-100 -z-10" />
-
-              {/* Renderizamos el historial directamente del objeto order */}
-              {order.history.map((step, index) => {
-                const isLast = index === order.history.length - 1;
-
-                return (
-                  <div
-                    key={index}
-                    className="relative flex gap-4 pb-8 pl-4 last:pb-0"
-                  >
-                    {/* Contenido */}
-                    <div className="-mt-1">
-                      <span className="text-[14px] text-gray-400 font-mono block mb-0.5">
-                        {step.timeStr}
-                      </span>
-                      <p
-                        className={`text-base font-bold ${
-                          isLast ? "text-gray-900" : "text-gray-500"
-                        }`}
-                      >
-                        {step.status}
-                      </p>
-                      {/* Solo mostramos duración si es mayor a 0 */}
-                      {step.duration > 0 && (
-                        <p className="text-[14px] text-gray-400 mt-1">
-                          Duración:{" "}
-                          <span className="font-medium text-gray-600">
-                            {step.duration} min
-                          </span>
-                        </p>
-                      )}
-                    </div>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                  <RefreshCw
+                    size={40}
+                    className="animate-spin text-[#FF8108]"
+                  />
+                  <p className="text-[10px] font-black uppercase mt-4">
+                    Cargando historial...
+                  </p>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="absolute top-0 bottom-0 left-[7px] w-0.5 bg-linear-to-b from-[#FF8108] to-gray-100" />
+                  <div className="space-y-10">
+                    {detail?.historialEstados?.map(
+                      (step: any, index: number) => {
+                        const isLast =
+                          index === detail.historialEstados.length - 1;
+                        return (
+                          <div
+                            key={index}
+                            className="relative pl-8 animate-in slide-in-from-left-4"
+                          >
+                            <div
+                              className={`absolute left-0 top-1 w-4 h-4 rounded-full border-4 border-white shadow-md z-10 ${
+                                isLast
+                                  ? "bg-[#FF8108] ring-4 ring-orange-100 scale-110"
+                                  : "bg-gray-300"
+                              }`}
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-black text-[#FF8108] bg-white w-fit px-2 rounded-md border border-orange-50 mb-1">
+                                {formatTimeAmPm(step.fechaHora)}
+                              </span>
+                              <p
+                                className={`text-sm font-black uppercase ${
+                                  isLast ? "text-gray-900" : "text-gray-400"
+                                }`}
+                              >
+                                {step.estado}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
-
-            {/* Footer del timeline (si está entregada) */}
-            {order.status === "Entregado" && (
-              <div className="mt-8 p-3 bg-green-50 rounded-lg border border-green-100 flex items-center gap-2">
-                <span className="text-[14px] font-bold text-green-700">
-                  Orden completada
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const MetricCard = ({ icon, label, value }: any) => (
+  <div className="p-6 rounded-4xl bg-gray-50 border border-gray-100 group transition-all hover:bg-white hover:border-[#FF8108]/30">
+    <div className="flex items-center gap-2 text-gray-400 mb-2 group-hover:text-[#FF8108] transition-colors">
+      <span className="opacity-70">{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest">
+        {label}
+      </span>
+    </div>
+    <p className="text-3xl font-black text-gray-900 tabular-nums tracking-tighter">
+      {value}
+    </p>
+  </div>
+);

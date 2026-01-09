@@ -4,7 +4,7 @@ import { Pencil, Trash2, Eye, EyeOff, Check, X } from "lucide-react";
 interface ZonaListProps {
   uiZonas: string[];
   zonas: any[];
-  mesas: any[]; // <--- AGREGAR ESTO
+  mesas: any[];
   editingId: number | null;
   editingName: string;
   setEditingName: (value: string) => void;
@@ -18,7 +18,7 @@ interface ZonaListProps {
 export const ZonaList: React.FC<ZonaListProps> = ({
   uiZonas,
   zonas,
-  mesas, // <--- RECIBIR MESAS
+  mesas,
   editingId,
   editingName,
   setEditingName,
@@ -28,7 +28,6 @@ export const ZonaList: React.FC<ZonaListProps> = ({
   handleDeleteClick,
   toggleEstadoZona,
 }) => {
-  // Definir qué estados bloquean la desactivación
   const estadosActivos = ["OCUPADA", "ESPERANDO", "AGRUPADA"];
 
   return (
@@ -39,7 +38,6 @@ export const ZonaList: React.FC<ZonaListProps> = ({
         const isDisabled = zonaObj?.estado === "Inactiva";
         const isEditing = zonaObj && zonaObj.id === editingId;
 
-        // 1. Filtrar mesas y detectar estado
         const mesasDeEstaZona = (mesas ?? []).filter(
           (m) => m.zona === zonaNombre
         );
@@ -48,19 +46,11 @@ export const ZonaList: React.FC<ZonaListProps> = ({
           estadosActivos.includes(m.estado)
         );
 
-        // 2. Lógica de Bloqueo
-
-        // Bloqueo Toggle (Ojo): Si está activa y tiene mesas ocupadas
         const isToggleBlocked = !isDisabled && tieneMesasOcupadas;
 
-        // ************ CORRECCIÓN CLAVE ************
-        // Bloqueo Delete (Papelera):
-        // - Si es "Sin zona": Bloquear si NO hay mesas (nada que limpiar).
-        // - Si es zona normal: Bloquear si tiene mesas OCUPADAS (en servicio).
         const isDeleteBlocked = isSinZona
           ? mesasDeEstaZona.length === 0
           : tieneMesasOcupadas;
-        // *****************************************
 
         // Estilos
         const rowStyle = isDisabled
@@ -83,7 +73,7 @@ export const ZonaList: React.FC<ZonaListProps> = ({
 
                 {/* Guardar */}
                 <button
-                  className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition"
+                  className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition cursor-pointer"
                   onClick={handleSaveEdit}
                 >
                   <Check size={18} />
@@ -91,7 +81,7 @@ export const ZonaList: React.FC<ZonaListProps> = ({
 
                 {/* Cancelar */}
                 <button
-                  className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition"
+                  className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition cursor-pointer"
                   onClick={() => setEditingId(null)}
                 >
                   <X size={18} />
@@ -145,7 +135,7 @@ export const ZonaList: React.FC<ZonaListProps> = ({
                     {!isSinZona && (
                       <button
                         onClick={() => handleEdit(zonaObj)}
-                        className="p-2 text-blue-500 hover:bg-blue-100 rounded-lg transition"
+                        className="p-2 text-blue-500 hover:bg-blue-100 rounded-lg transition cursor-pointer"
                         title="Editar nombre"
                       >
                         <Pencil size={18} />
@@ -162,7 +152,7 @@ export const ZonaList: React.FC<ZonaListProps> = ({
                         ${
                           isDeleteBlocked
                             ? "text-gray-300 cursor-not-allowed"
-                            : "text-red-500 hover:bg-red-100"
+                            : "text-red-500 hover:bg-red-100 cursor-pointer"
                         }`}
                       title={
                         isDeleteBlocked

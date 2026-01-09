@@ -45,6 +45,17 @@ export const useZonaLogic = ({
           closeInternal();
           break;
 
+        // 👇👇 AGREGAR ESTE CASO NUEVO 👇👇
+        // CASO 1.5: VACIAR ZONA (Para "Sin Zona")
+        case "CLEAR_ZONE":
+          // Reutilizamos la función del contexto.
+          // Como es la zona "Sin Zona", el contexto SABE que no debe borrar la zona,
+          // solo borrará las mesas.
+          await eliminarZonaConMesas(originId);
+          closeInternal();
+          break;
+        // 👆👆 FIN DEL AGREGADO 👆👆
+
         // CASO 2: MOVER A "SIN ZONA"
         case "MOVE_NULL":
           // Buscamos el ID de "Sin zona" (o "Sin Zona")

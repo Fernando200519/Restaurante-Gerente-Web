@@ -1,202 +1,259 @@
-// src/components/orders/OrdersTable.tsx
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Eye } from "lucide-react"; // Iconos para paginación y detalle
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Clock,
+  User,
+  Hash,
+  SearchX,
+} from "lucide-react";
 import { Order, OrderStatus } from "../../types/order";
-import { OrderDetailsModal } from "./OrdersDetailModal";
 
 interface OrdersTableProps {
   orders: Order[];
+  currentPage: number;
+  onPageChange: (newPage: number) => void;
+  pageSize: number;
+  onViewOrder: (order: Order) => void;
 }
 
-const ROWS_PER_PAGE = 10;
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string }> =
+  {
+    solicitado: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+    enpreparacion: {
+      bg: "bg-orange-50",
+      text: "text-orange-700",
+      dot: "bg-orange-500",
+    },
+    listo: {
+      bg: "bg-emerald-50",
+      text: "text-emerald-700",
+      dot: "bg-emerald-500",
+    },
+    entregado: { bg: "bg-gray-100", text: "text-gray-900", dot: "bg-gray-500" },
+    cancelada: { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" },
+  };
+export const OrdersTable: React.FC<OrdersTableProps> = ({
+  orders,
+  currentPage,
+  onPageChange,
+  pageSize,
+  onViewOrder,
+}) => {
+  const hasNextPage = orders.length === pageSize;
 
-// Estilos de badges más refinados
-const getStatusStyle = (status: OrderStatus) => {
-  const base = "px-3 py-1 rounded-full text-[14px] font-semibold border";
-  switch (status) {
-    case "Listo":
-      return `${base} bg-emerald-50 text-emerald-700 border-emerald-200`;
-    case "En Preparación":
-      return `${base} bg-amber-50 text-amber-700 border-amber-200`;
-    case "Entregado":
-      return `${base} bg-slate-50 text-slate-600 border-slate-200`;
-    case "Solicitado":
-      return `${base} bg-blue-50 text-blue-700 border-blue-200`;
-    case "Cancelada":
-      return `${base} bg-red-50 text-red-700 border-red-200`;
-    default:
-      return base;
-  }
-};
-
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders }) => {
-  const [page, setPage] = useState(1);
-
-  const totalPages = Math.ceil(orders.length / ROWS_PER_PAGE);
-  const start = (page - 1) * ROWS_PER_PAGE;
-  const paginatedOrders = orders.slice(start, start + ROWS_PER_PAGE);
-  // Dentro de OrdersTable...
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-
-  // Función para cerrar
-  const closeDetail = () => setSelectedOrder(null);
-
-  if (!orders.length) {
+  if (!orders.length && currentPage === 1) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center flex flex-col items-center">
-        <div className="bg-gray-50 p-4 rounded-full mb-4">
-          <Eye className="h-8 w-8 text-gray-300" />
+      <div className="bg-white rounded-[3rem] border-4 border-dashed border-gray-50 p-20 text-center flex flex-col items-center animate-in fade-in duration-500">
+        <div className="bg-orange-50 p-6 rounded-full mb-6">
+          <SearchX className="h-12 w-12 text-[#FF8108] opacity-40" />
         </div>
-        <h3 className="text-gray-900 font-semibold text-lg mb-1">
-          No se encontraron órdenes
+        <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">
+          Sin historial de órdenes
         </h3>
-        <p className="text-gray-500 text-sm">
-          Intenta ajustar los filtros o la fecha de búsqueda.
+        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest mt-2">
+          Prueba ajustando los filtros de búsqueda
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          {/* HEADER: Estilo SaaS (uppercase, tracking) */}
-          <thead className="bg-gray-50 text-base text-gray-500 font-semibold border-b border-gray-200">
+    <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col transition-all">
+      <div className="overflow-x-auto no-scrollbar">
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-50/50 border-b border-gray-100">
             <tr>
-              <th className="px-6 py-4">Fecha</th>
-              <th className="px-6 py-4">Hora</th>
-              <th className="px-6 py-4">Mesa</th>
-              <th className="px-6 py-4">Ítem</th>
-              <th className="px-6 py-4">Mesero</th>
-              <th className="px-6 py-4 text-center">Estado</th>
-              <th className="px-6 py-4 text-right">Tiempo Estado</th>
-              <th className="px-6 py-4 text-center">Acción</th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Registro
+              </th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Ubicación
+              </th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Comanda
+              </th>
+              <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Responsable
+              </th>
+              <th className="px-8 py-5 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Estado
+              </th>
+              <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Tiempo
+              </th>
+              <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                Detalles
+              </th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-100">
-            {paginatedOrders.map((order) => (
-              <tr
-                key={order.id}
-                className="hover:bg-blue-50/30 transition-colors duration-150 group"
-              >
-                {/* FECHA */}
-                <td className="px-6 py-4 text-gray-500 text-base">
-                  {order.date}
-                </td>
+          <tbody className="divide-y divide-gray-50">
+            {orders.map((order) => {
+              const statusKey = order.status
+                .toLowerCase()
+                .trim()
+                .replace(/\s/g, "")
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
 
-                {/* HORA */}
-                <td className="px-6 py-4 text-gray-500 text-[14px]">
-                  {order.time ? order.time : "—"}
-                </td>
+              const config =
+                STATUS_CONFIG[statusKey] || STATUS_CONFIG.solicitado;
 
-                {/* MESA */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="font-semibold text-gray-800 bg-gray-100 px-2 py-1 rounded text-[14px]">
-                    {order.tableId}
-                  </span>
-                </td>
+              // ⏳ LÓGICA DE TIEMPO FINALIZADO
+              const isFinalized =
+                statusKey === "entregado" || statusKey === "cancelada";
 
-                {/* ÍTEM(S) */}
-                <td className="px-6 py-4 text-gray-900 font-medium text-base">
-                  {order.items.map((item, i) => (
-                    <div key={i}>{item.name}</div>
-                  ))}
-                </td>
+              // ✅ DETERMINAMOS EL MENSAJE DEL TOOLTIP
+              const tooltipMessage =
+                statusKey === "entregado"
+                  ? "Entrega finalizada"
+                  : statusKey === "cancelada"
+                  ? "Pedido cancelado"
+                  : "";
 
-                {/* MESERO */}
-                <td className="px-6 py-4 text-gray-600 text-base">
-                  {order.waiter}
-                </td>
-
-                {/* ESTADO */}
-                <td className="px-6 py-4 text-center">
-                  <span className={getStatusStyle(order.status)}>
-                    {order.status}
-                  </span>
-                </td>
-
-                {/* TIEMPO EN ESTADO */}
-                <td className="px-6 py-4 text-right">
-                  {order.status === "Entregado" ||
-                  order.status === "Cancelada" ? (
-                    <span className="text-gray-700 text-xl font-medium block -mt-1">
-                      -
-                    </span>
-                  ) : (
-                    <div className="flex items-center justify-end gap-1 font-medium text-gray-700 text-base">
-                      {order.timeInStatus}
-                      {order.isLate && (
-                        <span
-                          className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"
-                          title="Tiempo excedido"
-                        />
-                      )}
+              const shouldPulse = [
+                "solicitado",
+                "enpreparacion",
+                "listoparaentregar",
+              ].includes(statusKey);
+              return (
+                <tr
+                  key={order.id}
+                  className="hover:bg-orange-50/30 transition-all group"
+                >
+                  <td className="px-8 py-5 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black text-gray-900 tabular-nums">
+                        {new Date(
+                          order.date + "T00:00:00"
+                        ).toLocaleDateString()}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-gray-400">
+                        <Clock size={12} />
+                        <span className="text-[11px] font-bold tabular-nums">
+                          {order.time || "--:--"}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </td>
+                  </td>
 
-                {/* ACCIÓN (Botón mejorado) */}
-                <td className="px-6 py-4 text-center">
-                  <button
-                    className="text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-all cursor-pointer"
-                    onClick={() => setSelectedOrder(order)}
+                  <td className="px-8 py-5">
+                    <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200 shadow-inner">
+                      <Hash size={12} className="text-gray-400" />
+                      <span className="font-black text-gray-800 text-sm">
+                        {order.tableId}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-8 py-5 min-w-[200px]">
+                    <div className="flex flex-col gap-1">
+                      {order.items.map((item, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="h-2 w-2 rounded-full bg-[#FF8108] shadow-[0_0_8px_rgba(255,129,8,0.4)]" />
+                          <span className="text-sm font-black text-gray-900 uppercase tracking-tight italic">
+                            {item.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+
+                  <td className="px-8 py-5 whitespace-nowrap text-sm font-bold uppercase text-gray-600 tracking-tight">
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border-2 border-white shadow-sm shrink-0">
+                        {order.waiterPhoto ? (
+                          <img
+                            src={order.waiterPhoto}
+                            alt={order.waiter}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <User size={16} strokeWidth={2.5} />
+                        )}
+                      </div>
+                      <span className="truncate max-w-[120px]">
+                        {order.waiter}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-8 py-5 text-center">
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-current ${config.bg} ${config.text}`}
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${config.dot} ${
+                          shouldPulse
+                            ? "animate-pulse shadow-[0_0_8px_currentColor]"
+                            : ""
+                        }`}
+                      />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {order.status}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* 🎯 CELDA DE PERMANENCIA CON TOOLTIP */}
+                  <td
+                    className={`px-8 py-5 text-right whitespace-nowrap font-black tabular-nums transition-colors cursor-help ${
+                      isFinalized ? "text-gray-300" : "text-gray-700"
+                    }`}
+                    title={tooltipMessage}
                   >
-                    <span className="text-[14px] font-medium mr-1">
-                      Ver detalles
-                    </span>
-                  </button>
-                </td>
-              </tr>
-            ))}
+                    {isFinalized ? "--" : order.timeInStatus}
+                  </td>
+
+                  <td className="px-8 py-5 text-right">
+                    <button
+                      onClick={() => onViewOrder(order)}
+                      className="p-2.5 text-gray-400 hover:text-[#FF8108] hover:bg-white rounded-2xl shadow-sm border border-transparent hover:border-orange-100 transition-all cursor-pointer"
+                    >
+                      <Eye size={20} strokeWidth={2.5} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* PAGINACIÓN INTEGRADA (Footer de la tabla) */}
-      <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-between">
-        <p className="text-base text-gray-600">
-          Mostrando <span className="font-bold text-gray-900">{start + 1}</span>{" "}
-          a{" "}
-          <span className="font-bold text-gray-900">
-            {Math.min(start + ROWS_PER_PAGE, orders.length)}
-          </span>{" "}
-          de resultados
-        </p>
+      {/* 🛠️ FOOTER DE PAGINACIÓN */}
+      <div className="border-t border-gray-200 bg-gray-50/50 px-8 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#FF8108]" />
+          <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
+            Página <span className="text-gray-900">{currentPage}</span> —{" "}
+            {orders.length} registros cargados
+          </p>
+        </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           <button
-            disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
-            className={`p-2 rounded-lg border transition-all ${
-              page === 1
-                ? "bg-white text-gray-300 border-gray-200 cursor-not-allowed"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:shadow-sm cursor-pointer"
-            }`}
+            disabled={currentPage === 1}
+            onClick={() => onPageChange(currentPage - 1)}
+            className="p-2.5 rounded-xl border-2 bg-white border-gray-100 text-gray-400 disabled:opacity-30 hover:border-[#FF8108]/30 hover:text-[#FF8108] transition-all cursor-pointer"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} strokeWidth={3} />
           </button>
 
           <button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className={`p-2 rounded-lg border transition-all ${
-              page === totalPages
-                ? "bg-white text-gray-300 border-gray-200 cursor-not-allowed"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:shadow-sm cursor-pointer"
-            }`}
+            disabled={!hasNextPage}
+            onClick={() => onPageChange(currentPage + 1)}
+            className="p-2.5 rounded-xl border-2 bg-white border-gray-100 text-gray-400 disabled:opacity-30 hover:border-[#FF8108]/30 hover:text-[#FF8108] transition-all cursor-pointer"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} strokeWidth={3} />
           </button>
         </div>
       </div>
-
-      <OrderDetailsModal
-        isOpen={!!selectedOrder}
-        onClose={closeDetail}
-        order={selectedOrder}
-      />
     </div>
   );
 };

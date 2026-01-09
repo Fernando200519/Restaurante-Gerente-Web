@@ -1,37 +1,28 @@
-// src/components/tables/MesaFormModal.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useMesas } from "../../hooks/useMesas";
 import { Zona } from "../../types/mesa";
-import { ChevronDown, MapPin, X } from "lucide-react";
+import { ChevronDown, MapPin, X, PlusCircle } from "lucide-react";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  editMesaId?: number | null;
   zonas: Zona[];
   zonaDefaultId?: number;
-  onSubmit?: (data: { capacidad: number; zonaId: number }) => Promise<void>;
 }
 
 const MesaFormModal: React.FC<Props> = ({
   visible,
   onClose,
-  editMesaId = null,
   zonas,
   zonaDefaultId,
 }) => {
-  const { crearMesa, actualizarMesa, mesas } = useMesas();
-
-  const [capacidad, setCapacidad] = useState<number | "otro">(4);
-  const [otroValor, setOtroValor] = useState<number | "">("");
-
-  // Estado para el ID de la zona (number)
+  const { crearMesa, mesas } = useMesas();
   const [zonaId, setZonaId] = useState<number | "">("");
-
-  const [modeEdit, setModeEdit] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Bloquear scroll al abrir
   useEffect(() => {
     if (visible) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "auto";
@@ -40,246 +31,204 @@ const MesaFormModal: React.FC<Props> = ({
     };
   }, [visible]);
 
-  // Cálculo visual del nombre sugerido (Solo cosmético, el backend decide el final)
-  // Buscamos el ID más alto y sumamos 1, o usamos 1 si no hay mesas.
-  const siguienteNumero =
-    mesas.length > 0
-      ? Math.max(
-          ...mesas.map((m) => {
-            // Intentar extraer número del nombre "Mesa 10" -> 10
-            const num = parseInt(m.nombre.replace(/\D/g, ""), 10);
-            return isNaN(num) ? 0 : num;
-          }),
-          0
-        ) + 1
-      : 1;
+  const siguienteNumero = useMemo(() => {
+    if (mesas.length === 0) return 1;
+    const numeros = mesas.map((m) => {
+      const num = parseInt(m.nombre.replace(/\D/g, ""), 10);
+      return isNaN(num) ? 0 : num;
+    });
+    return Math.max(...numeros, 0) + 1;
+  }, [mesas]);
 
   const nombreSugerido = `Mesa ${siguienteNumero}`;
 
   useEffect(() => {
     if (visible) {
-      if (editMesaId) {
-        const mesa = mesas.find((m) => m.id === editMesaId);
-        if (mesa) {
-          setModeEdit(true);
-          setZonaId(mesa.zonaId ?? "");
-        }
-      } else {
-        setModeEdit(false);
-        setCapacidad(4);
-        setOtroValor("");
-
-        if (zonaDefaultId) {
-          setZonaId(zonaDefaultId);
-        } else if (zonas.length > 0) {
-          setZonaId(zonas[0].id);
-        } else {
-          setZonaId("");
-        }
+      if (zonaDefaultId) {
+        setZonaId(zonaDefaultId);
+      } else if (zonas.length > 0) {
+        const primeraActiva =
+          zonas.find((z) => z.estado === "Activa") || zonas[0];
+        setZonaId(primeraActiva.id);
       }
     }
-  }, [editMesaId, mesas, visible, zonas, zonaDefaultId]);
+  }, [visible, zonas, zonaDefaultId]);
 
-  // --- SUBMIT ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (zonaId === "") return;
 
-    if (zonaId === "" || zonaId === undefined) {
-      alert("Debes seleccionar una zona válida.");
-      return;
-    }
-    const finalZonaId = Number(zonaId);
-
+    setIsSubmitting(true);
     try {
-      if (modeEdit && editMesaId) {
-        // EDITAR
-        // Nota: Mantenemos el estado actual si no lo cambiamos (o podríamos pasarlo si el modal lo gestionara)
-        await actualizarMesa(editMesaId, finalZonaId);
-      } else {
-        // CREAR
-        await crearMesa({
-          zonaId: finalZonaId,
-        });
-      }
+      await crearMesa({ zonaId: Number(zonaId) });
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#FF8108", "#22C55E", "#ffffff"],
+      });
+
+      toast.success("¡Mesa creada!", {
+        description: `La nueva mesa se ha registrado exitosamente en el sistema.`,
+        duration: 4000,
+        style: {
+          borderRadius: "20px",
+          padding: "16px",
+          border: "1px solid #E5E7EB",
+        },
+      });
+
       onClose();
     } catch (error) {
-      console.error("Error guardando mesa:", error);
-      alert("Ocurrió un error al guardar la mesa.");
+      toast.error("Error al crear", {
+        description: "No se pudo conectar con el servidor. Intenta de nuevo.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  // 1. ORDENAR ZONAS: "Sin zona" primero, luego el resto
-  const zonasOrdenadas = [...zonas].sort((a, b) => {
-    const nombreA = a.nombre.trim().toLowerCase();
-    const nombreB = b.nombre.trim().toLowerCase();
-
-    if (nombreA === "sin zona") return -1; // A va primero
-    if (nombreB === "sin zona") return 1; // B va primero
-    return 0; // El resto mantiene su orden original (o usa a.nombre.localeCompare(b.nombre) para alfabético)
-  });
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop con Blur */}
+    <div className="fixed inset-0 z-70 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      {/* Backdrop con Blur Industrial */}
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity"
+        className="absolute inset-0 bg-gray-900/40 backdrop-blur-[1px]"
         onClick={onClose}
       />
 
-      {/* CORRECCIÓN 1: Quitamos 'overflow-hidden' para que el dropdown pueda salir.
-          Agregamos 'overflow-visible' explícitamente.
-      */}
-      <div className="bg-white rounded-2xl shadow-2xl z-10 w-full max-w-md overflow-visible transform transition-all scale-100 animate-in zoom-in-95 duration-200">
-        {/* CORRECCIÓN 2: Agregamos 'rounded-t-2xl' al header 
-            para mantener la estética sin usar overflow-hidden 
-        */}
-        <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-          <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            {modeEdit ? (
-              <>
-                <span className="text-[#FA9623]">✏️</span> Editar Mesa
-              </>
-            ) : (
-              <>Nueva Mesa</>
-            )}
-          </h3>
+      {/* 🚀 CAMBIO 1: Cambiamos 'overflow-hidden' por 'overflow-visible' */}
+      <div className="bg-white rounded-[2.5rem] shadow-2xl z-10 w-full max-w-md overflow-visible border border-gray-100 animate-in zoom-in-95 duration-300">
+        {/* 🚀 CAMBIO 2: Añadimos 'rounded-t-[2.5rem]' para proteger el diseño del header */}
+        <div className="p-6 bg-[#FF8108] text-white flex justify-between items-center rounded-t-[2.5rem]">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-xl">
+              <PlusCircle size={24} />
+            </div>
+            <div>
+              <h3 className="font-black text-xl leading-none uppercase tracking-tight">
+                Nueva Mesa
+              </h3>
+              <p className="text-[10px] font-bold text-orange-100 uppercase tracking-widest opacity-80">
+                Configuración de Sala
+              </p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition cursor-pointer hover:bg-gray-200 rounded-full p-1"
+            className="bg-black/10 hover:bg-black/20 p-2 rounded-full transition-all cursor-pointer active:scale-90"
           >
-            <X size={24} />
+            <X size={20} strokeWidth={3} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-6">
-            {/* Campo Nombre (Automático) */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-500 mb-1">
-                Nombre
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={
-                    modeEdit && editMesaId
-                      ? mesas.find((m) => m.id === editMesaId)?.nombre
-                      : nombreSugerido
-                  }
-                  disabled
-                  className="w-full pl-4 pr-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 font-bold cursor-not-allowed select-none"
-                />
-              </div>
-            </div>
+        {/* 🚀 CAMBIO 3: Añadimos 'rounded-b-[2.5rem]' al form */}
+        <form
+          onSubmit={handleSubmit}
+          className="p-8 space-y-6 rounded-b-[2.5rem]"
+        >
+          {/* Campo Nombre Informativo */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">
+              Nombre de la mesa
+            </label>
+            <input
+              type="text"
+              value={nombreSugerido}
+              disabled
+              className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl px-5 py-4 text-gray-400 font-bold cursor-not-allowed select-none "
+            />
+          </div>
 
-            {/* ----------------------------------------------------------------------- */}
-            {/* CAMPO ZONA (DISEÑO RESTAURADO Y FLOTANTE) */}
-            {/* ----------------------------------------------------------------------- */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
-                Asignar Zona
-              </label>
-
-              {/* 'relative' es necesario para que el dropdown se posicione respecto a este div */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className={`w-full px-4 py-2.5 border border-gray-300 rounded-xl outline-none 
-                             bg-white text-gray-800 transition text-left flex justify-between items-center 
-                             hover:border-[#FA9623] focus:ring-2 focus:ring-[#FA9623]/20
-                             ${
-                               dropdownOpen
-                                 ? "border-[#FA9623] ring-2 ring-[#FA9623]/20"
-                                 : ""
-                             }`}
-                >
-                  <span
-                    className={
-                      zonaId ? "text-gray-900 font-medium" : "text-gray-500"
-                    }
-                  >
-                    {zonasOrdenadas.find((z) => z.id === zonaId)?.nombre ||
-                      "Selecciona una zona..."}
-                  </span>
-
-                  <ChevronDown
+          {/* Selector de Zona Estilizado */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">
+              Ubicación / Zona
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className={`w-full px-5 py-4 border-2 rounded-2xl flex justify-between items-center transition-all bg-gray-50 cursor-pointer 
+                  ${
+                    dropdownOpen
+                      ? "border-[#FF8108] bg-white ring-4 ring-orange-50"
+                      : "border-gray-100 hover:border-gray-200"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <MapPin
                     size={18}
-                    className={`text-gray-500 transition-transform duration-200 ${
-                      dropdownOpen ? "rotate-180" : ""
-                    }`}
+                    className={zonaId ? "text-[#FF8108]" : "text-gray-300"}
                   />
-                </button>
+                  <span
+                    className={`font-bold ${
+                      zonaId ? "text-gray-800" : "text-gray-400"
+                    }`}
+                  >
+                    {zonas.find((z) => z.id === zonaId)?.nombre ||
+                      "Selecciona un área"}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={20}
+                  className={`text-gray-400 transition-transform ${
+                    dropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-                {/* DROPDOWN FLOTANTE 
-                    z-50 asegura que flote sobre cualquier otro elemento del modal.
-                */}
-                {dropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
-                    {zonasOrdenadas.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-gray-500 text-center italic">
-                        No hay zonas disponibles.
-                      </div>
-                    ) : (
-                      zonasOrdenadas.map((z) => (
-                        <div
-                          key={z.id}
-                          onClick={() => {
-                            setZonaId(z.id);
-                            setDropdownOpen(false);
-                          }}
-                          className={`px-4 py-2.5 cursor-pointer transition text-sm flex items-center justify-between
-                            ${
-                              zonaId === z.id
-                                ? "bg-[#FFF8F0] text-[#FA9623] font-bold"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                            }`}
-                        >
-                          {z.nombre}
-
-                          {zonaId === z.id && (
-                            <span className="w-2 h-2 rounded-full bg-[#FA9623]" />
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {zonasOrdenadas.length === 0 && (
-                <p className="text-xs text-red-500 mt-2 flex items-center gap-1 font-medium bg-red-50 p-2 rounded-lg border border-red-100">
-                  ⚠️ Necesitas crear una zona primero en el gestor de zonas.
-                </p>
+              {/* ✅ El Dropdown ahora se verá completo gracias al overflow-visible del padre */}
+              {dropdownOpen && (
+                <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+                  {zonas.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-gray-400 italic">
+                      No hay zonas activas
+                    </div>
+                  ) : (
+                    zonas.map((z) => (
+                      <button
+                        key={z.id}
+                        type="button"
+                        onClick={() => {
+                          setZonaId(z.id);
+                          setDropdownOpen(false);
+                        }}
+                        className={`w-full px-5 py-3 text-left text-sm font-bold transition-colors flex justify-between items-center cursor-pointer 
+                          ${
+                            zonaId === z.id
+                              ? "bg-orange-50 text-[#FF8108]"
+                              : "text-gray-600 hover:bg-gray-50"
+                          }`}
+                      >
+                        {z.nombre}
+                        {zonaId === z.id && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#FF8108]" />
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
               )}
             </div>
           </div>
 
-          {/* CORRECCIÓN 3: Agregamos 'rounded-b-2xl' al footer 
-              para mantener la estética inferior.
-          */}
-          <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-100 rounded-b-2xl">
+          {/* Acciones */}
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+              className="flex-1 px-6 py-4 text-sm font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 rounded-2xl transition-all"
             >
               Cancelar
             </button>
-
             <button
               type="submit"
-              disabled={zonas.length === 0}
-              className={`px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center gap-2
-              ${
-                zonas.length === 0
-                  ? "bg-gray-400 cursor-not-allowed opacity-70"
-                  : "bg-[#FA9623] hover:bg-[#e88b1f] active:scale-[0.98]"
-              }`}
+              disabled={zonaId === "" || isSubmitting}
+              className="flex-[1.5] bg-gray-900 text-white font-black py-4 rounded-2xl shadow-xl hover:bg-black hover:scale-[1.02] active:scale-95 transition-all disabled:bg-gray-200 disabled:text-gray-400"
             >
-              {modeEdit ? "Guardar Cambios" : "Crear Mesa"}
+              {isSubmitting ? "Creando..." : "Confirmar Mesa"}
             </button>
           </div>
         </form>

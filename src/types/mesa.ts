@@ -32,25 +32,28 @@ export interface Order {
 
 export interface OrderBasicInfo {
   id: number;
-  montoTotal?: number;
-  totalAlertas?: number;
-  startedAt?: string;
   total?: number;
+  montoTotal: number;
+  totalAlertas: number;
+  startedAt?: string;
+  platillos: any[];
 }
 
 export interface Mesa {
   id: number;
   nombre: string;
+  zonaId: number | null;
+  zona: string;
   estado:
     | "LIBRE"
     | "OCUPADA"
     | "ESPERANDO"
+    | "ESPERANDO_PAGO"
     | "AGRUPADA"
     | "INACTIVA"
-    | "ACTIVA"
     | "DESACTIVADA";
-  zonaId: number | null;
-  zona?: string;
   updatedAt?: string;
-  orden?: OrderBasicInfo | null;
+  orden: OrderBasicInfo | null;
+  grupo: number;
+  principal: string;
 }

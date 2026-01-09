@@ -1,13 +1,25 @@
 export type CategoryStatus = "activo" | "inactivo";
+export type CategoryType = "Alimentos" | "Bebidas";
 
 export type Category = {
   id: string;
   name: string;
   description?: string;
   status: CategoryStatus;
+  type: CategoryType;
+  parentName?: string;
+  parentId?: string | null;
 };
 
+export type CategoryFormData = {
+  name: string;
+  description?: string;
+  status: CategoryStatus;
+  type: CategoryType;
+  parentId?: string | null;
+};
 export type ProductStatus = "activo" | "inactivo";
+export type ProductType = "Alimento" | "Bebida";
 
 export type Product = {
   id: string;
@@ -17,13 +29,10 @@ export type Product = {
   categoryId: string;
   categoryName?: string;
   status: ProductStatus;
-  imageUrl?: string; // URL opcional si el backend la genera
-};
-
-export type CategoryFormData = {
-  name: string;
-  description?: string;
-  status: CategoryStatus;
+  imageUrl?: string;
+  type: ProductType;
+  complementos: Array<{ id: string; nombre: string; precio: number }>;
+  ingredientes: Array<{ id: string; nombre: string }>;
 };
 
 export type ProductFormData = {
@@ -32,8 +41,12 @@ export type ProductFormData = {
   price: number;
   categoryId: string;
   status: ProductStatus;
-  imageFile?: File; // Archivo de imagen a subir (formFile)
-  removeImage?: boolean; // Indica si se debe eliminar la imagen existente
-  // Añade la propiedad 'imageUrl'
-  imageUrl: string;
+  type: ProductType;
+  imageUrl?: string;
+  imageFile?: File;
+  removeImage?: boolean;
+  complementos: Array<{ id?: string; nombre: string; precio: number }>;
+  ingredientes: Array<{ id?: string; nombre: string }>;
+  tipoIva: "Exento" | "Tasa0" | "Tasa16";
+  precioIncluyeImpuestos: boolean;
 };

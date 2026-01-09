@@ -1,12 +1,4 @@
-import React from "react";
-import {
-  AlertTriangle,
-  Trash2,
-  ArrowRightLeft,
-  Ban,
-  X,
-  Check,
-} from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 export const ZonaInternalModal = ({
   modalState,
@@ -21,9 +13,13 @@ export const ZonaInternalModal = ({
 }: any) => {
   if (!modalState.isOpen) return null;
 
+  // 1. Detección robusta de "Sin Zona"
+  const targetZona = zonas.find((z: any) => z.id === modalState.targetZonaId);
+  const isSinZona = targetZona?.nombre?.trim().toLowerCase() === "sin zona";
+
   const renderContent = () => {
     switch (modalState.type) {
-      // CASO 1: CONFIRMAR ELIMINACIÓN SIMPLE
+      // CASO 1: CONFIRMAR ELIMINACIÓN SIMPLE (Zona vacía)
       case "confirm_delete_empty":
         return (
           <>
@@ -68,56 +64,82 @@ export const ZonaInternalModal = ({
               <div>
                 <p className="text-sm text-gray-500 mt-1">
                   {modalState.message}. Hay{" "}
-                  <strong>{modalState.tablesCount} mesa(s)</strong> afectada(s).
+                  <strong>{modalState.tablesCount} mesa(s)</strong> en{" "}
+                  <span className="font-semibold text-gray-700">
+                    {targetZona?.nombre}
+                  </span>
+                  .
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              {/* Opción A: Mover a otra zona */}
+              {/* Opción A: Mover a otra zona (SIEMPRE DISPONIBLE) */}
               <button
                 onClick={() => executeComplexAction("MOVE_OTHER")}
-                className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition group flex items-center gap-4 cursor-pointer "
+                className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition group flex items-center gap-4 cursor-pointer"
               >
                 <div>
                   <div className="font-bold text-gray-800 group-hover:text-blue-700">
                     Mover mesas a otra zona
                   </div>
                   <div className="text-xs text-gray-500">
-                    Reasigna las mesas y elimina esta zona.
+                    Reasigna las mesas a una zona existente o nueva.
                   </div>
                 </div>
               </button>
 
-              {/* Opción B: Mover a Sin Zona */}
-              <button
-                onClick={() => executeComplexAction("MOVE_NULL")}
-                className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition group flex items-center gap-4 cursor-pointer"
-              >
-                <div>
-                  <div className="font-bold text-gray-800">
-                    Mover a "Sin zona"
+              {/* LÓGICA DE OPCIONES SEGÚN TIPO DE ZONA */}
+              {isSinZona ? (
+                // --- MENÚ SEGURO PARA "SIN ZONA" (Solo 2 opciones total) ---
+                <button
+                  // CAMBIO IMPORTANTE: Enviamos "CLEAR_ZONE" en vez de "DELETE_ALL"
+                  onClick={() => executeComplexAction("CLEAR_ZONE")}
+                  className="w-full text-left p-4 rounded-xl border border-red-200 hover:border-red-400 hover:bg-red-50 transition group flex items-center gap-4 cursor-pointer"
+                >
+                  <div>
+                    <div className="font-bold text-gray-800 group-hover:text-red-700">
+                      Eliminar todas las mesas
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Se borrarán las mesas.
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Las mesas quedarán sin asignación.
-                  </div>
-                </div>
-              </button>
+                </button>
+              ) : (
+                // --- OPCIONES PARA ZONAS NORMALES ---
+                <>
+                  {/* Opción B: Mover a Sin Zona */}
+                  <button
+                    onClick={() => executeComplexAction("MOVE_NULL")}
+                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition group flex items-center gap-4 cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-gray-800 group-hover:text-orange-700">
+                        Mover a "Sin zona"
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Las mesas quedarán sueltas y se borra esta zona.
+                      </div>
+                    </div>
+                  </button>
 
-              {/* Opción C: Eliminar todo */}
-              <button
-                onClick={() => executeComplexAction("DELETE_ALL")}
-                className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50 transition group flex items-center gap-4 cursor-pointer"
-              >
-                <div>
-                  <div className="font-bold text-gray-800 group-hover:text-red-700">
-                    Eliminar zona y mesas
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Acción destructiva. Se borrarán los datos.
-                  </div>
-                </div>
-              </button>
+                  {/* Opción C: Eliminar todo */}
+                  <button
+                    onClick={() => executeComplexAction("DELETE_ALL")}
+                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50 transition group flex items-center gap-4 cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-gray-800 group-hover:text-red-700">
+                        Eliminar zona y mesas
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Acción destructiva. Se borrarán mesas y zona.
+                      </div>
+                    </div>
+                  </button>
+                </>
+              )}
             </div>
 
             <button
@@ -129,13 +151,17 @@ export const ZonaInternalModal = ({
           </>
         );
 
-      // CASO 3: SELECCIONAR DESTINO (Para MOVE_OTHER) - Si tu lógica lo usa
+      // CASO 3: SELECCIONAR DESTINO (Para MOVE_OTHER)
       case "select_destiny":
         return (
           <>
             <h3 className="text-xl font-bold mb-2">Seleccionar Nueva Zona</h3>
             <p className="text-gray-500 text-sm mb-4">
-              ¿A dónde quieres mover las mesas?
+              ¿A dónde quieres mover las mesas de{" "}
+              <span className="font-bold text-gray-700">
+                {targetZona?.nombre}
+              </span>
+              ?
             </p>
 
             <div className="space-y-3 mb-6">
@@ -151,7 +177,7 @@ export const ZonaInternalModal = ({
                   Selecciona una zona...
                 </option>
                 {zonas
-                  .filter((z: any) => z.id !== modalState.targetZonaId) // No mostrar la zona actual
+                  .filter((z: any) => z.id !== modalState.targetZonaId)
                   .map((z: any) => (
                     <option key={z.id} value={z.id}>
                       {z.nombre}
@@ -162,10 +188,11 @@ export const ZonaInternalModal = ({
 
               {destinyId === "NEW" && (
                 <input
-                  className="w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#FA9623] outline-none"
+                  className="w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#FA9623] outline-none animate-in fade-in"
                   placeholder="Nombre de la nueva zona..."
                   value={newZoneNameMigration}
                   onChange={(e) => setNewZoneNameMigration(e.target.value)}
+                  autoFocus
                 />
               )}
             </div>
@@ -178,8 +205,11 @@ export const ZonaInternalModal = ({
                 Cancelar
               </button>
               <button
-                className="flex-1 bg-[#FA9623] text-white py-2 rounded-xl font-bold shadow-md"
+                className="flex-1 bg-[#FA9623] text-white py-2 rounded-xl font-bold shadow-md hover:bg-[#e08a20]"
                 onClick={() => executeComplexAction("CONFIRM_MOVE")}
+                disabled={
+                  !destinyId || (destinyId === "NEW" && !newZoneNameMigration)
+                }
               >
                 Confirmar
               </button>
@@ -187,44 +217,24 @@ export const ZonaInternalModal = ({
           </>
         );
 
-      // CASO DEFAULT (ALERTAS SIMPLES)
       default:
-        return (
-          <div className="text-center">
-            <h3 className="text-xl font-bold mb-2 text-gray-800">
-              {modalState.title}
-            </h3>
-            <p className="text-gray-600 mb-6">{modalState.message}</p>
-            <button
-              onClick={closeInternal}
-              className="w-full bg-gray-800 text-white py-2.5 rounded-xl font-medium"
-            >
-              Entendido
-            </button>
-          </div>
-        );
+        return null;
     }
   };
 
   return (
-    // Z-INDEX 60 para estar encima del ZonaModal (que suele ser z-50)
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop más oscuro */}
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] animate-in fade-in duration-200"
         onClick={closeInternal}
       />
-
-      {/* Card del Modal */}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden">
-        {/* Botón X de cierre rápido */}
         <button
           onClick={closeInternal}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
         >
           <X size={20} />
         </button>
-
         {renderContent()}
       </div>
     </div>

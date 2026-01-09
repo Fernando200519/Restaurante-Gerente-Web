@@ -1,4 +1,13 @@
-import React, { createContext, useState, useContext, ReactNode } from "react";
+import {
+  createContext,
+  useState,
+  useContext,
+  ReactNode,
+  useEffect,
+  useCallback,
+} from "react";
+import { jwtDecode } from "jwt-decode";
+import { toast } from "sonner";
 import { LoginResponse } from "../types/auth";
 import { saveToken, removeToken, getToken } from "../utils/storage";
 
@@ -6,7 +15,7 @@ interface AuthContextType {
   token: string | null;
   role: string | null;
   estado: string | null;
-  user: any | null; // Agregué esto por si quieres usar el nombre del usuario después
+  user: any | null;
   isAuthenticated: boolean;
   loginUser: (data: LoginResponse) => void;
   logoutUser: () => void;
@@ -18,12 +27,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(() => getToken());
   const [role, setRole] = useState<string | null>(null);
   const [estado, setEstado] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null); // Estado para guardar infoUsuario
+  const [user, setUser] = useState<any | null>(null);
+
+  const logoutUser = useCallback(() => {
+    setToken(null);
+    setRole(null);
+    setEstado(null);
+    setUser(null);
+    removeToken();
+  }, []);
 
   const loginUser = (data: LoginResponse) => {
     const jwt = data.accessToken;
     const rol = data.infoUsuario?.tipo ?? null;
-    const estadoResp = data.estado ?? null;
+    const estadoResp = data.infoUsuario?.estado ?? null;
 
     setToken(jwt);
     setRole(rol);
@@ -32,13 +49,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     saveToken(jwt);
   };
 
-  const logoutUser = () => {
-    setToken(null);
-    setRole(null);
-    setEstado(null);
-    setUser(null);
-    removeToken();
-  };
+  useEffect(() => {
+    if (!token) return;
+
+    try {
+      const decoded: any = jwtDecode(token);
+      const expirationTime = decoded.exp * 1000;
+      const currentTime = Date.now();
+
+      const timeLeft = expirationTime - currentTime;
+
+      console.log(
+        `⏱️ Sesión válida por: ${Math.round(timeLeft / 1000 / 60)} minutos`
+      );
+
+      if (timeLeft <= 0) {
+        logoutUser();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        console.warn(
+          "⚠️ El token ha expirado. Cerrando sesión por seguridad..."
+        );
+
+        toast.error("Sesión terminada", {
+          description:
+            "Por seguridad, tu sesión ha expirado. Ingresa de nuevo.",
+          duration: 6000,
+        });
+
+        logoutUser();
+      }, timeLeft);
+
+      return () => clearTimeout(timer);
+    } catch (error) {
+      console.error("❌ Error al decodificar el token:", error);
+      logoutUser();
+    }
+  }, [token, logoutUser]);
 
   return (
     <AuthContext.Provider
@@ -46,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         token,
         role,
         estado,
-        user, // Exponemos la info del usuario
+        user,
         isAuthenticated: !!token,
         loginUser,
         logoutUser,

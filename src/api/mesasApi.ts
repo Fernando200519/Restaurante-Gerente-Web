@@ -3,18 +3,15 @@ import { apiClient } from "./config";
 
 interface MesaBackend {
   id: number;
-  zona?: string;
-  area?: { id: number; nombre: string; estado: string };
-  zonaId?: number | null;
-  estado?: string;
-  totalCuentaActiva?: number | null;
-  ordenId?: number | null;
-  fechaHoraInicioOcupacion?: string | null;
-
+  zona?: string | { id: number; nombre: string; estado: string }; // 🆕 Puede ser string u objeto
   nombre?: string;
-  updatedAt?: string;
+  estado?: string;
+  ordenId?: number | null;
+  totalCuentaActiva?: number | null;
+  fechaHoraInicioOcupacion?: string | null;
+  zonaId?: number | null;
+  area?: { id: number; nombre: string; estado: string };
 }
-
 interface FormDataResponse {
   zonas: Zona[];
 }
@@ -22,16 +19,21 @@ interface FormDataResponse {
 const adaptMesa = (m: MesaBackend): Mesa => {
   const rawEstado = m.estado || "LIBRE";
   let estadoNormalizado = String(rawEstado).toUpperCase();
-  if (estadoNormalizado === "ACTIVA") estadoNormalizado = "LIBRE";
+
+  if (estadoNormalizado === "ACTIVA") {
+    estadoNormalizado = "LIBRE";
+  } else if (estadoNormalizado === "PENDIENTE DE PAGO") {
+    estadoNormalizado = "ESPERANDO_PAGO";
+  }
 
   const estadosPermitidos = [
     "LIBRE",
     "OCUPADA",
     "ESPERANDO",
+    "ESPERANDO_PAGO",
     "AGRUPADA",
     "INACTIVA",
     "DESACTIVADA",
-    "ACTIVA",
   ];
 
   const estadoFinal = (
@@ -42,15 +44,14 @@ const adaptMesa = (m: MesaBackend): Mesa => {
 
   if (typeof m.zona === "string") {
     nombreZonaFinal = m.zona;
+  } else if (m.zona && typeof m.zona === "object" && "nombre" in m.zona) {
+    nombreZonaFinal = m.zona.nombre;
   } else if (m.area && m.area.nombre) {
     nombreZonaFinal = m.area.nombre;
   }
 
-  const zonaIdFinal = m.zonaId ?? null;
-
-  let ordenFinal: any = null;
-
-  if ((m.ordenId && m.ordenId > 0) || m.totalCuentaActiva != null) {
+  let ordenFinal = null;
+  if (m.ordenId || (m.totalCuentaActiva && m.totalCuentaActiva > 0)) {
     ordenFinal = {
       id: m.ordenId || 0,
       total: m.totalCuentaActiva || 0,
@@ -64,10 +65,9 @@ const adaptMesa = (m: MesaBackend): Mesa => {
   return {
     id: m.id,
     nombre: m.nombre || `Mesa ${m.id}`,
-    zonaId: zonaIdFinal,
+    zonaId: m.zonaId ?? null,
     zona: nombreZonaFinal,
     estado: estadoFinal,
-    updatedAt: m.updatedAt,
     orden: ordenFinal,
   };
 };
@@ -93,28 +93,15 @@ export const addMesa = async (data: { zonaId: number }): Promise<Mesa> => {
   return adaptMesa(mesaBack);
 };
 
-// PATCH /tables/{id}
 export const editMesa = async (
   id: number,
   zonaId?: number | null,
   estadoMesa?: string
 ): Promise<void> => {
-  // 1. Construimos un objeto dinámico "limpio"
-  // Solo agregamos las propiedades si NO son undefined
   const bodyData: Record<string, any> = {};
+  if (zonaId !== undefined) bodyData.zonaId = zonaId;
+  if (estadoMesa !== undefined) bodyData.estadoMesa = estadoMesa;
 
-  if (zonaId !== undefined) {
-    bodyData.zonaId = zonaId;
-  }
-
-  if (estadoMesa !== undefined) {
-    bodyData.estadoMesa = estadoMesa;
-  }
-
-  console.log("PATCH enviando limpio:", bodyData);
-
-  // 2. Enviamos solo lo necesario (ej: { "zonaId": 5 })
-  // Esto evita que el backend resetee el estado por recibir un null
   await apiClient.patch(`/tables/${id}`, bodyData);
 };
 
@@ -125,18 +112,12 @@ export const deleteMesas = async (ids: number[]): Promise<void> => {
 
 export const getMesaConOrdenes = async (id: number): Promise<Mesa | null> => {
   try {
-    const { data } = await apiClient.get(`/tables/${id}`);
+    const { data } = await apiClient.get<MesaBackend>(`/tables/${id}`);
 
-    let item: any = null;
-    if (Array.isArray(data)) {
-      item = data.find((x: any) => Number(x.id) === Number(id)) || data[0];
-    } else {
-      item = data;
-    }
-
-    if (!item) return null;
-    return adaptMesa(item);
+    if (!data) return null;
+    return adaptMesa(data);
   } catch (error) {
+    console.error(`Error al obtener detalle de mesa ${id}:`, error);
     return null;
   }
 };

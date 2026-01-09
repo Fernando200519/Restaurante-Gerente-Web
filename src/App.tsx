@@ -5,16 +5,17 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
-
+import { Toaster } from "sonner";
 import { useAuth, AuthProvider } from "./context/AuthContext";
+import SetupPasswordPage from "./pages/SetupPasswordPage";
 import MesasPage from "./pages/MesasPage";
-import LoginPage from "./pages/Login";
+import LoginPage from "./pages/LoginPage";
 import OrdersPage from "./pages/OrdersPage";
 import Layout from "./components/Layout";
 import { MesasProvider } from "./context/MesasContext";
 import Employees from "./pages/Employees";
-import Menu from "./pages/Menu";
-import Ventas from "./pages/Ventas";
+import Menu from "./pages/MenuPage";
+import Ventas from "./pages/VentasPage";
 
 const ProtectedRoute = () => {
   const { isAuthenticated } = useAuth();
@@ -27,7 +28,8 @@ const ProtectedRoute = () => {
 };
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isInactive = isAuthenticated && user?.estado === "Inactivo";
 
   return (
     <Routes>
@@ -38,16 +40,26 @@ function AppRoutes() {
         }
       />
 
-      {/* Rutas protegidas */}
+      <Route
+        path="/setup-password"
+        element={
+          isAuthenticated ? <SetupPasswordPage /> : <Navigate to="/login" />
+        }
+      />
+
       <Route element={<ProtectedRoute />}>
         <Route
           path="/mesas"
           element={
-            <Layout>
-              <MesasProvider>
-                <MesasPage />
-              </MesasProvider>
-            </Layout>
+            isInactive ? (
+              <Navigate to="/setup-password" replace />
+            ) : (
+              <Layout>
+                <MesasProvider>
+                  <MesasPage />
+                </MesasProvider>
+              </Layout>
+            )
           }
         />
 
@@ -60,7 +72,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Employees */}
         <Route
           path="/employees"
           element={
@@ -70,7 +81,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Menú */}
         <Route
           path="/menu"
           element={
@@ -79,6 +89,7 @@ function AppRoutes() {
             </Layout>
           }
         />
+
         <Route
           path="/ventas"
           element={
@@ -104,6 +115,7 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-right" richColors closeButton expand={false} />
       <Router>
         <AppRoutes />
       </Router>

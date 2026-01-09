@@ -1,188 +1,184 @@
-// src/components/orders/OrdersPage.tsx
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Search, X, Calendar } from "lucide-react";
-// 1. CORRECCIÓN DE RUTA: Cambiamos '../components/orders/StatsHeader' a './StatsHeader'
+import React, { useRef, useEffect, useState } from "react";
+import { Search, X, Calendar, RefreshCw } from "lucide-react";
 import { StatsHeader } from "../components/orders/StatsHeader";
-// 2. CORRECCIÓN DE RUTA: Cambiamos '../components/orders/OrdersTable' a './OrdersTable'
 import { OrdersTable } from "../components/orders/OrdersTable";
-// Asumo que 'types/order' está un nivel arriba (en 'src/types/order')
-import { OrderStatus, Order } from "../types/order";
-// Asumo que 'api/detailsApi' está un nivel arriba (en 'src/api/detailsApi')
-import { getDetails, mapDetailsToOrders } from "../api/detailsApi";
+import { useOrders } from "../hooks/useOrders";
+import { OrderDetailsModal } from "../components/orders/OrdersDetailModal";
+import { Order } from "../types/order";
+import OrdersTableSkeleton from "../components/orders/OrdersTableSkeleton";
 
 const OrdersPage: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(50);
+  const {
+    orders,
+    loading,
+    page,
+    setPage,
+    searchQuery,
+    setSearchQuery,
+    selectedStatus,
+    setSelectedStatus,
+    selectedDate,
+    setSelectedDate,
+    statusCounts,
+    refresh,
+  } = useOrders(50);
 
-  // Referencia para controlar el input de fecha manualmente
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
 
-  // Fecha LOCAL correcta
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  });
-
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(
-    null
-  );
-
-  // Cargar detalles desde la API
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      setLoading(true);
-      try {
-        // Asegúrate de que los tipos de page y pageSize coincidan con lo que getDetails espera
-        const details = await getDetails(page, pageSize);
-        const mapped = mapDetailsToOrders(details);
-        if (mounted) setOrders(mapped);
-      } catch (error) {
-        console.error("Error cargando detalles:", error);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
+    const interval = setInterval(() => refresh(), 10000);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [page, pageSize]);
-
-  // 🔥 STATS filtradas por día seleccionado
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-
-    orders.forEach((o) => {
-      if (o.date === selectedDate) {
-        counts[o.status] = (counts[o.status] || 0) + 1;
-      }
-    });
-
-    return counts;
-  }, [selectedDate, orders]);
-
-  // 🔥 FILTRO + ORDENAMIENTO por fecha y hora (más reciente → más antigua)
-  const filteredOrders = useMemo(() => {
-    return (
-      orders
-        .filter((o) => {
-          const q = searchQuery.toLowerCase();
-
-          const matchesSearch =
-            o.id.toLowerCase().includes(q) ||
-            o.tableId.toLowerCase().includes(q) ||
-            o.waiter.toLowerCase().includes(q) ||
-            o.items.some((i) => i.name.toLowerCase().includes(q));
-
-          const matchesStatus = selectedStatus
-            ? o.status === selectedStatus
-            : true;
-
-          const matchesDate = selectedDate ? o.date === selectedDate : true;
-
-          return matchesSearch && matchesStatus && matchesDate;
-        })
-        // 🔥 ORDENAMIENTO
-        .sort((a, b) => {
-          const da = new Date(`${a.date} ${a.time}`);
-          const db = new Date(`${b.date} ${b.time}`);
-          return db.getTime() - da.getTime(); // Más reciente primero
-        })
-    );
-  }, [orders, searchQuery, selectedStatus, selectedDate]);
-
-  // Función para abrir el calendario
-  const handleDateClick = () => {
-    if (dateInputRef.current) {
-      // showPicker() es el método moderno para abrir el calendario nativo
-      // Usamos 'as any' por si tu versión de TypeScript es antigua
-      (dateInputRef.current as any).showPicker?.();
+  const renderMainContent = () => {
+    if (loading && orders.length === 0 && page === 1) {
+      return (
+        <div className="bg-white rounded-[3rem] border border-gray-100 flex flex-col items-center justify-center py-40 space-y-6 shadow-sm animate-in fade-in">
+          <div className="relative">
+            <div className="w-20 h-20 border-4 border-orange-100 border-t-[#FF8108] rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <RefreshCw size={24} className="text-[#FF8108] opacity-20" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-900 font-black uppercase tracking-[0.2em] text-sm">
+              Sincronizando Base de Datos
+            </p>
+            <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1">
+              Conectando con el servidor...
+            </p>
+          </div>
+        </div>
+      );
     }
+
+    if (loading) {
+      return (
+        <div className="animate-in fade-in duration-300">
+          <OrdersTableSkeleton />
+        </div>
+      );
+    }
+
+    if (orders.length > 0) {
+      return (
+        <div className="animate-in slide-in-from-bottom-4 duration-500">
+          <OrdersTable
+            orders={orders}
+            currentPage={page}
+            onPageChange={(newPage) => {
+              setPage(newPage);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            pageSize={50}
+            onViewOrder={(order) => setSelectedOrder(order)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white rounded-[3rem] border-4 border-dashed border-gray-50 py-40 text-center flex flex-col items-center animate-in fade-in">
+        <div className="bg-orange-50 w-24 h-24 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-inner border border-orange-100">
+          <Search className="text-[#FF8108] opacity-30" size={48} />
+        </div>
+        <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">
+          Sin coincidencias
+        </h3>
+        <p className="text-gray-400 mt-2 font-bold uppercase tracking-widest text-[10px] max-w-xs">
+          No se encontraron órdenes que coincidan con los filtros de estado o
+          fecha seleccionados
+        </p>
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto">
+    <div className="max-w-[1600px] mx-auto pb-20 space-y-4 animate-in fade-in duration-700">
+      {/* 📊 SECCIÓN DE RESUMEN */}
+      <section className="relative z-30">
         <StatsHeader
           counts={statusCounts}
           selectedStatus={selectedStatus}
           onSelectStatus={setSelectedStatus}
         />
+      </section>
 
-        {/* Contenedor Flex para Buscador y Fecha */}
-        <div className="mb-6 flex gap-4 flex-wrap">
-          {/* Buscador */}
-          <div className="relative flex-1 min-w-[280px]">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-6 w-6 text-gray-400" />
-            </div>
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por ID, mesa, mesero o ítem..."
-              className="w-full pl-12 pr-10 py-4 bg-white rounded-xl shadow-sm text-base outline-none focus:ring-2 focus:ring-[#2563EB] border border-gray-200 transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            )}
-          </div>
-
-          {/* Selector de Fecha • Mejorado */}
-          <div
-            className="relative cursor-pointer w-full sm:w-[200px]"
-            onClick={handleDateClick} // Abre el calendario tocando cualquier parte
-          >
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Calendar className="h-5 w-5 text-gray-400" />
-            </div>
-
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={selectedDate}
-              // Esto evita que se pueda seleccionar una fecha futura
-              max={new Date().toISOString().split("T")[0]}
-              onChange={(e) => {
-                const value = e.target.value;
-
-                // Evitar fechas futuras (doble chequeo)
-                const today = new Date().toISOString().split("T")[0];
-                if (value > today) return;
-
-                setSelectedDate(value);
-              }}
-              className="
-          w-full pl-12 pr-4 py-4 
-          bg-white rounded-xl shadow-sm
-          text-base text-gray-700
-          outline-none
-          focus:ring-2 focus:ring-[#2563EB]
-          transition-all cursor-pointer border border-gray-200
-        "
-            />
-          </div>
+      {/* 🛠️ CONSOLA DE FILTROS: En un nivel inferior a los stats */}
+      <div className="relative z-10 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-6 flex flex-col lg:flex-row gap-4 items-center overflow-visible">
+        {/* Buscador */}
+        <div className="relative flex-1 group w-full z-10">
+          <Search
+            className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF8108] transition-colors"
+            size={20}
+            strokeWidth={3}
+          />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por ID, mesa, mesero o platillo..."
+            className="w-full pl-14 pr-12 py-4 bg-gray-50 border-2 border-gray-50 rounded-3xl outline-none focus:ring-4 focus:ring-orange-50 focus:border-[#FF8108] focus:bg-white transition-all font-bold text-gray-700 placeholder:text-gray-300"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 p-1.5 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={18} strokeWidth={3} />
+            </button>
+          )}
         </div>
 
-        {loading ? (
-          <div className="text-center text-gray-500 p-10">
-            Cargando órdenes...
-          </div>
-        ) : (
-          <OrdersTable orders={filteredOrders} />
-        )}
+        {/* Selector de Fecha Estilizado */}
+        <div
+          className="relative w-full lg:w-72 group cursor-pointer z-10"
+          onClick={() => (dateInputRef.current as any)?.showPicker?.()}
+        >
+          <Calendar
+            className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-[#FF8108] transition-colors"
+            size={20}
+            strokeWidth={2.5}
+          />
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={selectedDate}
+            max={new Date().toLocaleDateString("en-CA")}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-gray-50 rounded-3xl outline-none focus:border-[#FF8108] focus:bg-white transition-all font-black text-gray-700 cursor-pointer tabular-nums"
+          />
+        </div>
+
+        {/* Botón de Refresco Manual */}
+        <button
+          onClick={() => refresh()}
+          className="p-4 bg-gray-900 text-white rounded-2xl shadow-xl hover:bg-black transition-all active:scale-95 cursor-pointer group z-10"
+          title="Sincronizar ahora"
+        >
+          <RefreshCw
+            size={24}
+            strokeWidth={2.5}
+            className={`${
+              loading
+                ? "animate-spin text-[#FF8108]"
+                : "group-hover:rotate-180 transition-transform duration-500"
+            }`}
+          />
+        </button>
       </div>
+
+      {/* 🚀 EL CAMBIO ESTÁ AQUÍ: Invocamos la función de renderizado */}
+      <div className="relative z-0 min-h-[500px] pt-4">
+        {renderMainContent()}
+      </div>
+
+      {/* 🚀 MODAL AL FINAL PARA EVITAR CONFLICTOS DE Z-INDEX */}
+      <OrderDetailsModal
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        order={selectedOrder}
+      />
     </div>
   );
 };

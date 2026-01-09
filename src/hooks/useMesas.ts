@@ -1,4 +1,3 @@
-// src/hooks/useMesas.ts
 import { useMesasContext } from "../context/MesasContext";
 
 export const useMesas = () => {
@@ -8,6 +7,7 @@ export const useMesas = () => {
     mesas: ctx.mesas,
     zonas: ctx.zonas,
     loading: ctx.loading,
+    lastCreatedId: ctx.lastCreatedId,
     crearMesa: ctx.crearMesa,
     actualizarMesa: ctx.actualizarMesa,
     eliminarMesas: ctx.eliminarMesas,

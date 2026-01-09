@@ -1,69 +1,75 @@
-import React from 'react';
+import React from "react";
 
 const ProductTableSkeleton: React.FC = () => {
-  const rows = Array.from({ length: 8 });
+  const rows = Array.from({ length: 5 });
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Imagen
+    <div className="bg-white rounded-4xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-gray-50/50 border-b border-gray-100">
+            {/* Cabeceras espejo con la tabla real */}
+            <th className="px-8 py-5 text-left text-[10px] font-black text-gray-200 uppercase tracking-[0.2em]">
+              Platillo / Producto
             </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Nombre
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <th className="px-8 py-5 text-left text-[10px] font-black text-gray-200 uppercase tracking-[0.2em]">
               Categoría
             </th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Precio
+            <th className="px-8 py-5 text-right text-[10px] font-black text-gray-200 uppercase tracking-[0.2em]">
+              Precio (MXN)
             </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <th className="px-8 py-5 text-center text-[10px] font-black text-gray-200 uppercase tracking-[0.2em]">
               Estado
             </th>
-            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <th className="px-8 py-5 text-right text-[10px] font-black text-gray-200 uppercase tracking-[0.2em]">
               Acciones
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-gray-50">
           {rows.map((_, index) => (
-            <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-              {/* Imagen */}
-              <td className="px-4 py-3">
-                <div className="w-10 h-10 bg-gray-200 rounded-lg" />
-              </td>
-
-              {/* Nombre */}
-              <td className="px-4 py-3">
-                <div className="max-w-xs">
-                  <div className="h-4 bg-gray-200 rounded w-32 mb-1" />
-                  <div className="h-3 bg-gray-200 rounded w-24" />
+            <tr key={index}>
+              {/* Celda Info Principal (Imagen + Textos) */}
+              <td className="px-8 py-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-gray-100 border-2 border-gray-50 shrink-0" />
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <div className="h-4 bg-gray-200 rounded-md w-32" />
+                    <div className="h-2.5 bg-gray-100 rounded-md w-48" />
+                  </div>
                 </div>
               </td>
 
-              {/* Categoría */}
-              <td className="px-4 py-3">
-                <div className="h-5 bg-gray-200 rounded-full w-20" />
+              {/* Celda Categoría */}
+              <td className="px-8 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-3.5 w-3.5 rounded bg-gray-100 opacity-50" />
+                  <div className="h-4 bg-gray-100 rounded-lg w-20" />
+                </div>
               </td>
 
-              {/* Precio */}
-              <td className="px-4 py-3 text-right">
-                <div className="h-4 bg-gray-200 rounded w-16 ml-auto" />
+              {/* Celda Precio (Alineada a la derecha) */}
+              <td className="px-8 py-4 text-right">
+                <div className="flex items-center justify-end gap-1">
+                  {/* Pequeño hint del color de marca en el símbolo de pesos */}
+                  <div className="h-3 w-2 bg-orange-100/50 rounded-sm" />
+                  <div className="h-6 bg-gray-200 rounded-lg w-16" />
+                </div>
               </td>
 
-              {/* Estado */}
-              <td className="px-4 py-3">
-                <div className="h-5 bg-gray-200 rounded-full w-16 mx-auto" />
+              {/* Celda Estado (Círculo + Texto) */}
+              <td className="px-8 py-4">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-200" />
+                  <div className="h-3 bg-gray-100 rounded w-12" />
+                </div>
               </td>
 
-              {/* Acciones */}
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-center gap-1">
-                  <div className="w-8 h-8 bg-gray-200 rounded-lg" />
-                  <div className="w-8 h-8 bg-gray-200 rounded-lg" />
+              {/* Celda Acciones (Espejo de los botones Editar/Eliminar) */}
+              <td className="px-8 py-4 text-right">
+                <div className="flex justify-end gap-2">
+                  <div className="h-9 w-9 bg-gray-50 rounded-xl" />
+                  <div className="h-9 w-9 bg-gray-50 rounded-xl" />
                 </div>
               </td>
             </tr>

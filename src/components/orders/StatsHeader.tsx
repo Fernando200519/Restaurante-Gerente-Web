@@ -1,11 +1,21 @@
 import React from "react";
+import {
+  ClipboardList,
+  ChefHat,
+  CheckCircle2,
+  PackageCheck,
+  XCircle,
+  LucideIcon,
+} from "lucide-react";
 import { OrderStatus } from "../../types/order";
 
 interface StatCardProps {
   title: string;
   count: number;
-  textColorClass: string;
-  activeStyleClass: string;
+  icon: LucideIcon;
+  colorClass: string;
+  bgLight: string;
+  borderClass: string;
   isActive: boolean;
   onClick: () => void;
 }
@@ -13,31 +23,59 @@ interface StatCardProps {
 const StatCard: React.FC<StatCardProps> = ({
   title,
   count,
-  textColorClass,
-  activeStyleClass,
+  icon: Icon,
+  colorClass,
+  bgLight,
+  borderClass,
   isActive,
   onClick,
 }) => (
-  <div
+  <button
     onClick={onClick}
     className={`
-      relative bg-white rounded-xl p-4 shadow-sm border flex flex-col justify-center min-w-40 flex-1 cursor-pointer transition-all duration-200
+      relative transition-all duration-300 group
+      rounded-4xl p-5 border-2 flex items-center gap-4 min-w-[200px] flex-1 cursor-pointer
       ${
         isActive
-          ? `${activeStyleClass} `
-          : "border-gray-100 hover:border-gray-300 hover:shadow-md"
+          ? `bg-white ${colorClass} border-current scale-[1.05] z-20 shadow-xl shadow-gray-200/50`
+          : `bg-white ${borderClass} ${colorClass} opacity-60 hover:opacity-100 z-10 hover:scale-[1.02] hover:shadow-md`
       }
     `}
   >
+    {/* Fondo sutil siempre presente, más intenso si es activo */}
     <div
-      className={`text-[18px] font-bold mb-1 ${
-        isActive ? textColorClass : "text-gray-400"
+      className={`absolute inset-0 ${bgLight} rounded-4xl pointer-events-none ${
+        isActive ? "opacity-20" : "opacity-40"
+      }`}
+    />
+
+    <div
+      className={`relative z-10 p-3 rounded-2xl transition-all duration-300 ${
+        isActive
+          ? `${colorClass.replace("text", "bg")} text-white`
+          : `${bgLight} ${colorClass}`
       }`}
     >
-      {title}
+      <Icon size={22} strokeWidth={isActive ? 3 : 2.5} />
     </div>
-    <div className={`text-3xl font-bold ${textColorClass}`}>{count}</div>
-  </div>
+
+    <div className="relative z-10 flex flex-col items-start text-left min-w-0">
+      <p
+        className={`text-[10px] font-black uppercase tracking-[0.15em] leading-tight truncate ${
+          isActive ? "text-current" : "opacity-60"
+        }`}
+      >
+        {title}
+      </p>
+      <p
+        className={`text-3xl font-black tabular-nums tracking-tighter ${
+          isActive ? "text-gray-900" : "text-current"
+        }`}
+      >
+        {count}
+      </p>
+    </div>
+  </button>
 );
 
 interface StatsHeaderProps {
@@ -55,52 +93,62 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
     onSelectStatus(selectedStatus === status ? null : status);
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-      <StatCard
-        title="Solicitadas"
-        count={counts["Solicitado"] || 0}
-        textColorClass="text-blue-600"
-        // Define aquí el color del contorno específico para azul
-        activeStyleClass="border-blue-500 ring-blue-500 bg-blue-50/20"
-        isActive={selectedStatus === "Solicitado"}
-        onClick={() => toggle("Solicitado")}
-      />
-      <StatCard
-        title="En Preparación"
-        count={counts["En Preparación"] || 0}
-        textColorClass="text-[#F59E0B]"
-        // Define aquí el color del contorno específico para ámbar
-        activeStyleClass="border-[#F59E0B] ring-[#F59E0B] bg-[#F59E0B]/10"
-        isActive={selectedStatus === "En Preparación"}
-        onClick={() => toggle("En Preparación")}
-      />
-      <StatCard
-        title="Listas para Entregar"
-        count={counts["Listo"] || 0}
-        textColorClass="text-[#22C55E]"
-        // Define aquí el color del contorno específico para verde
-        activeStyleClass="border-[#22C55E] ring-[#22C55E] bg-[#22C55E]/10"
-        isActive={selectedStatus === "Listo"}
-        onClick={() => toggle("Listo")}
-      />
-      <StatCard
-        title="Entregadas"
-        count={counts["Entregado"] || 0}
-        textColorClass="text-gray-700"
-        // Define aquí el color del contorno específico para gris
-        activeStyleClass="border-gray-500 ring-gray-500 bg-gray-100"
-        isActive={selectedStatus === "Entregado"}
-        onClick={() => toggle("Entregado")}
-      />
-      <StatCard
-        title="Canceladas"
-        count={counts["Cancelada"] || 0}
-        textColorClass="text-[#EF4444]"
-        // Define aquí el color del contorno específico para rojo
-        activeStyleClass="border-[#EF4444] ring-[#EF4444] bg-[#EF4444]/10"
-        isActive={selectedStatus === "Cancelada"}
-        onClick={() => toggle("Cancelada")}
-      />
+    <div className="relative z-30">
+      <div className="flex items-stretch gap-5 overflow-x-auto no-scrollbar pt-2 pb-8 px-6 -mx-6">
+        <StatCard
+          title="Solicitadas"
+          count={counts["Solicitado"] || 0}
+          icon={ClipboardList}
+          colorClass="text-blue-600"
+          bgLight="bg-blue-50"
+          borderClass="border-blue-100"
+          isActive={selectedStatus === "Solicitado"}
+          onClick={() => toggle("Solicitado")}
+        />
+        <StatCard
+          title="En Cocina"
+          count={counts["En Preparación"] || 0}
+          icon={ChefHat}
+          colorClass="text-amber-500"
+          bgLight="bg-amber-50"
+          borderClass="border-amber-100"
+          isActive={selectedStatus === "En Preparación"}
+          onClick={() => toggle("En Preparación")}
+        />
+        <StatCard
+          title="Listas"
+          count={counts["Listo"] || 0}
+          icon={CheckCircle2}
+          colorClass="text-emerald-500"
+          bgLight="bg-emerald-50"
+          borderClass="border-emerald-100"
+          isActive={selectedStatus === "Listo"}
+          onClick={() => toggle("Listo")}
+        />
+        <StatCard
+          title="Entregadas"
+          count={counts["Entregado"] || 0}
+          icon={PackageCheck}
+          colorClass="text-gray-600"
+          bgLight="bg-gray-100"
+          borderClass="border-gray-200"
+          isActive={selectedStatus === "Entregado"}
+          onClick={() => toggle("Entregado")}
+        />
+        <StatCard
+          title="Canceladas"
+          count={counts["Cancelada"] || 0}
+          icon={XCircle}
+          colorClass="text-rose-500"
+          bgLight="bg-rose-50"
+          borderClass="border-rose-100"
+          isActive={selectedStatus === "Cancelada"}
+          onClick={() => toggle("Cancelada")}
+        />
+      </div>
+
+      {/* Degradado lateral para scroll en móviles */}
+      <div className="absolute right-0 top-0 bottom-0 w-12 bg-linear-to-l from-gray-50 to-transparent pointer-events-none md:hidden" />
     </div>
   );
 };

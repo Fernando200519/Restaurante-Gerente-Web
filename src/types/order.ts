@@ -1,5 +1,3 @@
-// src/types/order.ts
-
 export type OrderStatus =
   | "Solicitado"
   | "En Preparación"
@@ -8,16 +6,20 @@ export type OrderStatus =
   | "Cancelada";
 
 export interface OrderItem {
+  id: number;
   name: string;
   category: "Alimento" | "Bebida" | "Auto";
+  status: string;
+  price: number;
+  comensal?: string;
+  fechaHoraInicioEstado?: string;
 }
 
-// Estructura para cada paso del historial
 export interface OrderHistoryStep {
   status: OrderStatus;
   label: string;
   timeStr: string;
-  duration: number; // en minutos
+  duration: number;
 }
 
 export interface Order {
@@ -25,16 +27,16 @@ export interface Order {
   tableId: string;
   items: OrderItem[];
   waiter: string;
+  waiterPhoto?: string | null;
   totalTime: string;
   status: OrderStatus;
   timeInStatus: string;
   isLate?: boolean;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-
-  // 🔥 NUEVOS CAMPOS
+  date: string;
+  time: string;
   price: number;
+  totalComensales: number;
   modifiers: string[];
   history: OrderHistoryStep[];
-  guestName: string; // 🔥 El comensal
+  guestName: string;
 }

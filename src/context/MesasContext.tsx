@@ -1,4 +1,3 @@
-// src/context/MesasContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Mesa, Zona } from "../types/mesa";
 import {
@@ -22,6 +21,7 @@ interface MesasContextProps {
   mesas: Mesa[];
   zonas: Zona[];
   loading: boolean;
+  lastCreatedId: number | null;
 
   crearMesa: (data: { zonaId: number }) => Promise<void>;
   actualizarMesa: (
@@ -58,6 +58,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastCreatedId, setLastCreatedId] = useState<number | null>(null);
 
   useEffect(() => {
     const inicializarDatos = async () => {
@@ -76,21 +77,32 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
     inicializarDatos();
   }, []);
+
   const crearMesa = async (data: { zonaId: number }) => {
-    const nueva = await addMesa(data);
+    try {
+      const nueva = await addMesa(data);
 
-    let zonaNombre = nueva.zona;
-    if (
-      (!zonaNombre || zonaNombre.trim() === "Sin Zona") &&
-      nueva.zonaId != null
-    ) {
-      const z = zonas.find((zz) => zz.id === nueva.zonaId);
-      if (z) zonaNombre = z.nombre;
+      let zonaNombre = String(nueva.zona || "");
+
+      if (
+        (!zonaNombre || zonaNombre.trim() === "Sin Zona") &&
+        nueva.zonaId != null
+      ) {
+        const z = zonas.find((zz) => zz.id === nueva.zonaId);
+        if (z) zonaNombre = z.nombre;
+      }
+
+      const enriquecida: Mesa = { ...nueva, zona: zonaNombre };
+      setMesas((prev) => [...prev, enriquecida]);
+
+      setLastCreatedId(nueva.id);
+      setTimeout(() => setLastCreatedId(null), 5000);
+    } catch (error) {
+      console.error("Error real en crearMesa:", error);
+      throw error;
     }
-
-    const enriquecida: Mesa = { ...nueva, zona: zonaNombre ?? nueva.zona };
-    setMesas((prev) => [...prev, enriquecida]);
   };
+
   const actualizarMesa = async (
     id: number,
     zonaId: number | null,
@@ -164,10 +176,39 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   const habilitarMesa = async (id: number) => {
     setLoading(true);
     try {
+      const mesaActual = mesas.find((m) => m.id === id);
+      if (!mesaActual) throw new Error("Mesa no encontrada");
+
+      let idZonaParaEnviar = mesaActual.zonaId;
+
+      if (
+        !idZonaParaEnviar &&
+        mesaActual.zona &&
+        mesaActual.zona !== "Sin Zona"
+      ) {
+        const nombreZonaBuscada = mesaActual.zona;
+
+        const zonaEncontrada = zonas.find(
+          (z) =>
+            z.nombre.trim().toLowerCase() ===
+            nombreZonaBuscada.trim().toLowerCase()
+        );
+
+        if (zonaEncontrada) {
+          idZonaParaEnviar = zonaEncontrada.id;
+        }
+      }
+
+      console.log(
+        `Habilitando mesa ${id}. Zona ID recuperado: ${idZonaParaEnviar}`
+      );
+
       setMesas((prev) =>
         prev.map((m) => (m.id === id ? { ...m, estado: "LIBRE" } : m))
       );
-      await editMesa(id, undefined, "Libre");
+
+      await editMesa(id, idZonaParaEnviar, "Libre");
+
       await refreshAll();
     } catch (error) {
       console.error("Error al habilitar mesa:", error);
@@ -243,8 +284,21 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const eliminarZona = async (id: number) => {
-    await deleteZona(id);
-    setZonas((prev) => prev.filter((z) => z.id !== id));
+    const zonaTarget = zonas.find((z) => z.id === id);
+    if (zonaTarget && zonaTarget.nombre.trim().toLowerCase() === "sin zona") {
+      console.warn("⛔ Se bloqueó el intento de eliminar la zona 'Sin Zona'");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await deleteZona(id);
+      setZonas((prev) => prev.filter((z) => z.id !== id));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const eliminarZonaConMesas = async (id: number) => {
@@ -283,7 +337,11 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
 
   const toggleEstadoZona = async (zona: Zona) => {
     const nuevoEstadoZona = zona.estado === "Activa" ? "Inactiva" : "Activa";
-    const nuevoEstadoMesa =
+
+    const estadoMesaBackend =
+      nuevoEstadoZona === "Inactiva" ? "Inactiva" : "Libre";
+
+    const estadoMesaFrontend =
       nuevoEstadoZona === "Inactiva" ? "INACTIVA" : "LIBRE";
 
     try {
@@ -297,24 +355,26 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       setMesas((prev) =>
         prev.map((m) => {
           if (m.zona === zona.nombre) {
-            return { ...m, estado: nuevoEstadoMesa };
+            return { ...m, estado: estadoMesaFrontend };
           }
           return m;
         })
       );
+
       await editZona(zona.id, zona.nombre, nuevoEstadoZona);
+
       const mesasAfectadas = mesas.filter((m) => m.zona === zona.nombre);
 
       if (mesasAfectadas.length > 0) {
         const promesasDeActualizacion = mesasAfectadas.map((m) =>
-          editMesa(m.id, undefined, nuevoEstadoMesa)
+          editMesa(m.id, undefined, estadoMesaBackend)
         );
         await Promise.all(promesasDeActualizacion);
       }
+
       await refreshAll();
     } catch (error) {
       console.error("Error al cambiar estado:", error);
-
       refreshAll();
     }
   };
@@ -335,15 +395,21 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
       if (showLoading) setLoading(false);
     }
   };
+
   const moverMesasDeZonaContext = async (
     origenId: number,
     destinoId: number
   ) => {
     setLoading(true);
     try {
+      const zonaOrigen = zonas.find((z) => z.id === origenId);
+      const isSinZona = zonaOrigen?.nombre.trim().toLowerCase() === "sin zona";
+
       await moverMesasDeZona(origenId, destinoId);
 
-      await deleteZona(origenId);
+      if (!isSinZona) {
+        await deleteZona(origenId);
+      }
 
       await refreshAll();
     } catch (e) {
@@ -360,8 +426,15 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
   ) => {
     setLoading(true);
     try {
+      const zonaOrigen = zonas.find((z) => z.id === origenId);
+      const isSinZona = zonaOrigen?.nombre.trim().toLowerCase() === "sin zona";
+
       await migrarMesasNuevaZona(origenId, nuevoNombre);
-      await deleteZona(origenId);
+
+      if (!isSinZona) {
+        await deleteZona(origenId);
+      }
+
       await refreshAll();
     } catch (e) {
       console.error(e);
@@ -390,6 +463,7 @@ export const MesasProvider = ({ children }: { children: React.ReactNode }) => {
         moverMesasDeZonaContext,
         migrarMesasNuevaZonaContext,
         refreshAll,
+        lastCreatedId,
       }}
     >
       {children}
