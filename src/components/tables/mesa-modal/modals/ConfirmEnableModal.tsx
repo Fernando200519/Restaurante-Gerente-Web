@@ -15,7 +15,6 @@ export const ConfirmEnableModal: React.FC<Props> = ({
   onConfirm,
 }) => {
   return (
-    // Z-INDEX 70 para mantener consistencia y estar sobre otros modales
     <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
       {/* Fondo con desenfoque */}
       <div

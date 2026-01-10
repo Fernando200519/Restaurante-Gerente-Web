@@ -1,9 +1,10 @@
 import { Mesa, Zona } from "../types/mesa";
 import { apiClient } from "./config";
+import { parseBackendIsoToDate } from "../utils/time";
 
 interface MesaBackend {
   id: number;
-  zona?: string | { id: number; nombre: string; estado: string }; // 🆕 Puede ser string u objeto
+  zona?: string | { id: number; nombre: string; estado: string };
   nombre?: string;
   estado?: string;
   ordenId?: number | null;
@@ -11,7 +12,10 @@ interface MesaBackend {
   fechaHoraInicioOcupacion?: string | null;
   zonaId?: number | null;
   area?: { id: number; nombre: string; estado: string };
+  grupo?: number;
+  principal?: string;
 }
+
 interface FormDataResponse {
   zonas: Zona[];
 }
@@ -24,6 +28,8 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     estadoNormalizado = "LIBRE";
   } else if (estadoNormalizado === "PENDIENTE DE PAGO") {
     estadoNormalizado = "ESPERANDO_PAGO";
+  } else if (estadoNormalizado === "POR LIBERAR") {
+    estadoNormalizado = "POR_LIBERAR";
   }
 
   const estadosPermitidos = [
@@ -31,6 +37,7 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     "OCUPADA",
     "ESPERANDO",
     "ESPERANDO_PAGO",
+    "POR_LIBERAR",
     "AGRUPADA",
     "INACTIVA",
     "DESACTIVADA",
@@ -41,7 +48,6 @@ const adaptMesa = (m: MesaBackend): Mesa => {
   ) as Mesa["estado"];
 
   let nombreZonaFinal = "Sin Zona";
-
   if (typeof m.zona === "string") {
     nombreZonaFinal = m.zona;
   } else if (m.zona && typeof m.zona === "object" && "nombre" in m.zona) {
@@ -52,12 +58,14 @@ const adaptMesa = (m: MesaBackend): Mesa => {
 
   let ordenFinal = null;
   if (m.ordenId || (m.totalCuentaActiva && m.totalCuentaActiva > 0)) {
+    const dateObj = parseBackendIsoToDate(m.fechaHoraInicioOcupacion || "");
+
     ordenFinal = {
       id: m.ordenId || 0,
       total: m.totalCuentaActiva || 0,
       montoTotal: m.totalCuentaActiva || 0,
       totalAlertas: 0,
-      startedAt: m.fechaHoraInicioOcupacion || undefined,
+      startedAt: dateObj ? dateObj.toISOString() : undefined,
       platillos: [],
     };
   }
@@ -69,6 +77,8 @@ const adaptMesa = (m: MesaBackend): Mesa => {
     zona: nombreZonaFinal,
     estado: estadoFinal,
     orden: ordenFinal,
+    grupo: m.grupo ?? 0,
+    principal: m.principal ?? "",
   };
 };
 

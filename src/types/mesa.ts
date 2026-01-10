@@ -49,6 +49,7 @@ export interface Mesa {
     | "OCUPADA"
     | "ESPERANDO"
     | "ESPERANDO_PAGO"
+    | "POR_LIBERAR"
     | "AGRUPADA"
     | "INACTIVA"
     | "DESACTIVADA";

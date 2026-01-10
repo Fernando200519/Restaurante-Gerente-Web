@@ -9,7 +9,6 @@ export const useFilteredMesas = () => {
     null
   );
 
-  // 1️⃣ Capa 1: Filtrar mesas por la Zona activa
   const mesasDeLaZona = useMemo(() => {
     let result = mesas.map((m) => ({
       ...m,
@@ -37,12 +36,13 @@ export const useFilteredMesas = () => {
       ocupadas: mesasDeLaZona.filter((m) => m.estado === "OCUPADA").length,
       esperando: mesasDeLaZona.filter((m) => m.estado === "ESPERANDO_PAGO")
         .length,
+      porLiberar: mesasDeLaZona.filter((m) => m.estado === "POR_LIBERAR")
+        .length,
       grupos: mesasDeLaZona.filter((m) => m.estado === "AGRUPADA").length,
     }),
     [mesasDeLaZona]
   );
 
-  // 3️⃣ Capa 3: Filtrar para el Grid (Zona + Estado)
   const filteredData = useMemo(() => {
     let result = [...mesasDeLaZona];
 

@@ -16,7 +16,7 @@ export const ConfirmDeleteModal: React.FC<Props> = ({
 }) => {
   return (
     // Z-INDEX ALTO (70) para estar encima de MesaModal (50) o ZonaModal (60)
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
       {/* Fondo con desenfoque */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity"

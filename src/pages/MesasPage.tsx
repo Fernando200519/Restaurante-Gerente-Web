@@ -184,12 +184,12 @@ const Inner = () => {
             onClick={() => handleToggleFilter("ESPERANDO_PAGO")}
           />
           <KpiCard
-            title="Grupos"
-            value={stats.grupos}
-            color="bg-purple-500"
-            borderColor="border-purple-500"
-            isActive={estadoSeleccionado === "AGRUPADA"}
-            onClick={() => handleToggleFilter("AGRUPADA")}
+            title="Por Liberar"
+            value={stats.porLiberar || 0}
+            color="bg-sky-400"
+            borderColor="border-sky-400"
+            isActive={estadoSeleccionado === "POR_LIBERAR"}
+            onClick={() => handleToggleFilter("POR_LIBERAR")}
           />
         </section>
       )}

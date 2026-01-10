@@ -76,7 +76,6 @@ const CategoryTable: React.FC<CategoryTableProps> = ({
               <td className="px-8 py-5 whitespace-nowrap">
                 <div
                   className="flex items-center gap-3"
-                  // 🎯 Sangría visual corregida: 1.5rem por nivel para que se note la jerarquía
                   style={{ paddingLeft: `${category.depth * 1.5}rem` }}
                 >
                   {category.depth > 0 ? (

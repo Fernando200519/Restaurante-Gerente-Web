@@ -1,10 +1,6 @@
 import { apiClient } from "./config";
 import { Order, OrderStatus } from "../types/order";
-import {
-  parseBackendIsoToDate,
-  formatTimeAmPm,
-  formatDateLocalYYYYMMDD,
-} from "../utils/time";
+import { parseBackendIsoToDate, formatTimeAmPm } from "../utils/time";
 
 export interface OrderItemBackend {
   id: number;
@@ -195,21 +191,18 @@ export const getOrderById = async (id: number): Promise<Order | null> => {
 const calculateTimeInStatus = (startTime: string) => {
   if (!startTime) return "0 min";
 
-  // ✅ 1. Normalizamos el string: Si no tiene 'Z', se la agregamos para que JS sepa que es UTC
-  const normalizedStart = startTime.endsWith("Z") ? startTime : `${startTime}Z`;
+  // 🎯 FIX: No añadimos 'Z' si el string ya tiene zona horaria (+00:00)
+  // JavaScript ya entiende perfectamente el formato con +00:00
+  const hasZone = /[zZ]$|[+-]\d{2}(:?\d{2})?$/.test(startTime);
+  const parseable = hasZone ? startTime : `${startTime}Z`;
 
-  const start = new Date(normalizedStart).getTime();
+  const start = new Date(parseable).getTime();
   const now = new Date().getTime();
 
-  // ✅ 2. Calculamos la diferencia
+  if (isNaN(start)) return "0 min"; // Seguridad extra
+
   const diffMs = now - start;
   const diffMins = Math.floor(diffMs / (1000 * 60));
 
-  // ✅ 3. Control de errores: Si por desfase de segundos sale negativo, mostrar 0 o 1
-  if (diffMins < 0) {
-    // Si la diferencia es muy pequeña (pocos minutos), es solo un delay de sincronización
-    return "1 min";
-  }
-
-  return `${diffMins} min`;
+  return diffMins < 0 ? "1 min" : `${diffMins} min`;
 };

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Mesa } from "../../types/mesa";
-// ✅ Añadimos Receipt para el icono de cuenta
 import {
   Clock,
   DollarSign,
@@ -8,6 +7,8 @@ import {
   Ban,
   Star,
   Receipt,
+  Sparkles,
+  Users,
 } from "lucide-react";
 
 interface Props {
@@ -90,11 +91,14 @@ export const MesaCard: React.FC<Props> = ({
       bg: "bg-gray-50",
       accent: "bg-gray-400",
     },
+    POR_LIBERAR: {
+      border: "border-sky-200",
+      bg: "bg-sky-50/30",
+      accent: "bg-sky-400",
+    },
   };
 
   const isSecondaryGrouped = mesa.grupo && !mesa.principal;
-  const isSpecialState =
-    isNew || mesa.estado === "ESPERANDO_PAGO" || mesa.grupo;
   const isVisuallyDisabled =
     zonaDeshabilitada ||
     mesa.estado === "INACTIVA" ||
@@ -125,19 +129,26 @@ export const MesaCard: React.FC<Props> = ({
       <div className="absolute top-4 right-6 flex flex-col items-end gap-2 z-20">
         {isNew && (
           <span className="bg-[#FF8108] text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg flex items-center gap-1.5 animate-bounce ring-2 ring-white">
-            <Star size={10} fill="white" />{" "}
+            <Star size={10} fill="white" />
             <span className="tracking-widest">NUEVA</span>
+          </span>
+        )}
+        {/* ✅ NUEVO: Badge de Mesa Ocupada */}
+        {mesa.estado === "OCUPADA" && (
+          <span className="bg-rose-500 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg ring-2 ring-white uppercase tracking-widest flex items-center gap-1">
+            <Users size={10} strokeWidth={3} /> Ocupada
           </span>
         )}
         {/* ✅ Badge de Pago Pendiente */}
         {mesa.estado === "ESPERANDO_PAGO" && (
-          <span className="bg-yellow-500 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg ring-2 ring-white uppercase tracking-widest flex items-center gap-1 animate-pulse">
+          <span className="bg-yellow-500 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg ring-2 ring-white uppercase tracking-widest flex items-center gap-1">
             <Receipt size={10} strokeWidth={3} /> Por Cobrar
           </span>
         )}
-        {mesa.grupo && (
-          <span className="bg-purple-600 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg ring-2 ring-white uppercase tracking-widest">
-            Grupo {mesa.grupo}
+        {/* ✅ Badge de Mesa por Liberar */}
+        {mesa.estado === "POR_LIBERAR" && (
+          <span className="bg-sky-500 text-white text-[9px] font-black px-3 py-1 rounded-full shadow-lg ring-2 ring-white uppercase tracking-widest flex items-center gap-1">
+            <Sparkles size={10} strokeWidth={3} /> Por Liberar
           </span>
         )}
       </div>
@@ -215,11 +226,12 @@ export const MesaCard: React.FC<Props> = ({
       </div>
 
       {/* FOOTER: Alertas Dinámicas */}
+
       {!isVisuallyDisabled && alertasActivas > 0 && (
         <div className="mt-4 flex items-center gap-2 bg-rose-50 p-2.5 rounded-xl border border-rose-100 animate-pulse">
           <AlertCircle size={14} className="text-rose-600" strokeWidth={3} />
           <span className="text-[10px] font-black text-rose-700 uppercase tracking-wide">
-            {alertasActivas}{" "}
+            {alertasActivas}
             {alertasActivas === 1 ? "Petición pendiente" : "Peticiones activas"}
           </span>
         </div>
