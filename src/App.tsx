@@ -13,7 +13,7 @@ import LoginPage from "./pages/LoginPage";
 import OrdersPage from "./pages/OrdersPage";
 import Layout from "./components/Layout";
 import { MesasProvider } from "./context/MesasContext";
-import Employees from "./pages/Employees";
+import Employees from "./pages/EmployeesPage";
 import Menu from "./pages/MenuPage";
 import Ventas from "./pages/VentasPage";
 

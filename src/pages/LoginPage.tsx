@@ -8,7 +8,7 @@ const Login: React.FC = () => {
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#FF8108] justify-center items-center p-12">
         <div className="relative z-10 text-center max-w-lg">
           <img
-            src="../../public/login/mesa_libre_color.png"
+            src="../../public/login/Logo_MesaLibreNuevo.png"
             className="w-200 h-auto mx-auto drop-shadow-2xl animate-pulse-slow"
             alt="Mesa Libre Logo"
           />

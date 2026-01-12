@@ -111,7 +111,7 @@ export const ZonaList: React.FC<ZonaListProps> = ({
                           !isToggleBlocked && toggleEstadoZona(zonaObj)
                         }
                         disabled={isToggleBlocked}
-                        className={`p-2 rounded-lg transition 
+                        className={`p-2 rounded-lg transition cursor-pointer 
                           ${
                             isDisabled
                               ? "text-green-600 hover:bg-green-100"

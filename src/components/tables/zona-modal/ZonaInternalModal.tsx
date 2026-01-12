@@ -1,4 +1,16 @@
-import { Trash2, X } from "lucide-react";
+// src/components/zones/ZonaInternalModal.tsx
+import {
+  Trash2,
+  X,
+  Layers,
+  AlertTriangle,
+  ChevronDown,
+  Eraser,
+  MapPin,
+  ArrowRightLeft,
+  Plus,
+} from "lucide-react";
+import { useState, useEffect } from "react";
 
 export const ZonaInternalModal = ({
   modalState,
@@ -13,128 +25,151 @@ export const ZonaInternalModal = ({
 }: any) => {
   if (!modalState.isOpen) return null;
 
-  // 1. Detección robusta de "Sin Zona"
-  const targetZona = zonas.find((z: any) => z.id === modalState.targetZonaId);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setIsDropdownOpen(false);
+  }, [modalState.type]);
+
+  const targetZona = zonas.find(
+    (z: any) => String(z.id) === String(modalState.targetZonaId)
+  );
   const isSinZona = targetZona?.nombre?.trim().toLowerCase() === "sin zona";
+
+  const selectedZone = zonas.find(
+    (z: any) => String(z.id) === String(destinyId)
+  );
+  const displayValue =
+    destinyId === "NEW"
+      ? "+ Crear nueva zona de destino"
+      : selectedZone?.nombre || "Selecciona una zona destino...";
+
+  const btnBase =
+    "flex-1 px-6 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer";
+  const cardBase =
+    "w-full text-left p-5 rounded-[2rem] border-2 transition-all group flex items-start gap-4 cursor-pointer mb-3";
 
   const renderContent = () => {
     switch (modalState.type) {
-      // CASO 1: CONFIRMAR ELIMINACIÓN SIMPLE (Zona vacía)
       case "confirm_delete_empty":
         return (
-          <>
-            <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 text-red-600">
-                <Trash2 size={24} />
+          <div className="animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="w-16 h-16 bg-rose-50 rounded-3xl flex items-center justify-center mb-5 text-rose-500 shadow-sm border border-rose-100">
+                <AlertTriangle size={32} strokeWidth={2.5} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter italic mb-3">
                 {modalState.title}
               </h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
+              <p className="text-gray-400 text-sm font-bold leading-relaxed">
                 {modalState.message}
               </p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
-                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition"
+                className={`${btnBase} bg-gray-100 text-gray-500 hover:bg-gray-200`}
                 onClick={closeInternal}
               >
                 Cancelar
               </button>
               <button
-                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl shadow-md transition flex justify-center items-center gap-2"
+                className={`${btnBase} bg-rose-500 text-white shadow-lg shadow-rose-200`}
                 onClick={() => {
                   eliminarZona(modalState.targetZonaId);
                   closeInternal();
                 }}
               >
-                <Trash2 size={18} />
-                Sí, eliminar
+                <Trash2 size={16} strokeWidth={3} /> Sí, eliminar
               </button>
             </div>
-          </>
+          </div>
         );
 
-      // CASO 2: ELEGIR ACCIÓN COMPLEJA (HAY MESAS)
       case "choose_action":
         return (
-          <>
-            <div className="flex items-start gap-4 mb-6">
+          <div className="animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-50">
+              <div className="p-2 bg-orange-50 rounded-xl text-[#FF8108]">
+                <MapPin size={20} />
+              </div>
               <div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {modalState.message}. Hay{" "}
-                  <strong>{modalState.tablesCount} mesa(s)</strong> en{" "}
-                  <span className="font-semibold text-gray-700">
-                    {targetZona?.nombre}
-                  </span>
-                  .
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Zona Detectada
+                </h4>
+                <p className="text-sm font-black text-gray-900 uppercase italic">
+                  {targetZona?.nombre} — {modalState.tablesCount} Mesa(s)
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              {/* Opción A: Mover a otra zona (SIEMPRE DISPONIBLE) */}
               <button
                 onClick={() => executeComplexAction("MOVE_OTHER")}
-                className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition group flex items-center gap-4 cursor-pointer"
+                className={`${cardBase} border-blue-50 bg-white hover:border-blue-200 hover:bg-blue-50/50 group`}
               >
-                <div>
-                  <div className="font-bold text-gray-800 group-hover:text-blue-700">
+                <div className="p-3 bg-blue-100 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform">
+                  <ArrowRightLeft size={20} strokeWidth={2.5} />
+                </div>
+                <div className="flex-1">
+                  <div className="font-black text-gray-900 text-xs uppercase tracking-tight group-hover:text-blue-700">
                     Mover mesas a otra zona
                   </div>
-                  <div className="text-xs text-gray-500">
-                    Reasigna las mesas a una zona existente o nueva.
+                  <div className="text-[10px] font-bold text-gray-400 mt-0.5">
+                    Reasigna el flujo de trabajo a una zona existente.
                   </div>
                 </div>
               </button>
 
-              {/* LÓGICA DE OPCIONES SEGÚN TIPO DE ZONA */}
               {isSinZona ? (
-                // --- MENÚ SEGURO PARA "SIN ZONA" (Solo 2 opciones total) ---
                 <button
-                  // CAMBIO IMPORTANTE: Enviamos "CLEAR_ZONE" en vez de "DELETE_ALL"
                   onClick={() => executeComplexAction("CLEAR_ZONE")}
-                  className="w-full text-left p-4 rounded-xl border border-red-200 hover:border-red-400 hover:bg-red-50 transition group flex items-center gap-4 cursor-pointer"
+                  className={`${cardBase} border-rose-50 bg-white hover:border-rose-200 hover:bg-rose-50/50 group`}
                 >
-                  <div>
-                    <div className="font-bold text-gray-800 group-hover:text-red-700">
+                  <div className="p-3 bg-rose-100 rounded-2xl text-rose-600 group-hover:scale-110 transition-transform">
+                    <Eraser size={20} strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-black text-gray-900 text-xs uppercase tracking-tight group-hover:text-rose-700">
                       Eliminar todas las mesas
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Se borrarán las mesas.
+                    <div className="text-[10px] font-bold text-gray-400 mt-0.5">
+                      Acción destructiva. Se borrarán los registros.
                     </div>
                   </div>
                 </button>
               ) : (
-                // --- OPCIONES PARA ZONAS NORMALES ---
                 <>
-                  {/* Opción B: Mover a Sin Zona */}
                   <button
                     onClick={() => executeComplexAction("MOVE_NULL")}
-                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition group flex items-center gap-4 cursor-pointer"
+                    className={`${cardBase} border-orange-50 bg-white hover:border-orange-200 hover:bg-orange-50/50 group`}
                   >
-                    <div>
-                      <div className="font-bold text-gray-800 group-hover:text-orange-700">
+                    <div className="p-3 bg-orange-100 rounded-2xl text-[#FF8108] group-hover:scale-110 transition-transform">
+                      <Layers size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-black text-gray-900 text-xs uppercase tracking-tight group-hover:text-orange-700">
                         Mover a "Sin zona"
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Las mesas quedarán sueltas y se borra esta zona.
+                      <div className="text-[10px] font-bold text-gray-400 mt-0.5">
+                        Las mesas quedan libres para nueva asignación.
                       </div>
                     </div>
                   </button>
 
-                  {/* Opción C: Eliminar todo */}
                   <button
                     onClick={() => executeComplexAction("DELETE_ALL")}
-                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-red-300 hover:bg-red-50 transition group flex items-center gap-4 cursor-pointer"
+                    className={`${cardBase} border-rose-50 bg-white hover:border-rose-200 hover:bg-rose-50/50 group`}
                   >
-                    <div>
-                      <div className="font-bold text-gray-800 group-hover:text-red-700">
-                        Eliminar zona y mesas
+                    <div className="p-3 bg-rose-100 rounded-2xl text-rose-600 group-hover:scale-110 transition-transform">
+                      <Trash2 size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-black text-gray-900 text-xs uppercase tracking-tight group-hover:text-rose-700">
+                        Borrar zona y mesas
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Acción destructiva. Se borrarán mesas y zona.
+                      <div className="text-[10px] font-bold text-gray-400 mt-0.5">
+                        Limpieza total de la base de datos de esta zona.
                       </div>
                     </div>
                   </button>
@@ -144,77 +179,152 @@ export const ZonaInternalModal = ({
 
             <button
               onClick={closeInternal}
-              className="mt-4 w-full py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+              className="mt-6 w-full py-3 text-gray-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-gray-600 hover:bg-gray-50 rounded-2xl transition-all cursor-pointer"
             >
-              Cancelar operación
+              Cancelar Operación
             </button>
-          </>
+          </div>
         );
 
-      // CASO 3: SELECCIONAR DESTINO (Para MOVE_OTHER)
       case "select_destiny":
         return (
-          <>
-            <h3 className="text-xl font-bold mb-2">Seleccionar Nueva Zona</h3>
-            <p className="text-gray-500 text-sm mb-4">
-              ¿A dónde quieres mover las mesas de{" "}
-              <span className="font-bold text-gray-700">
-                {targetZona?.nombre}
-              </span>
-              ?
-            </p>
+          <div className="space-y-4 mb-8 relative animate-in fade-in duration-300">
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] mb-2 ml-1">
+              Zona de Aterrizaje
+            </label>
 
-            <div className="space-y-3 mb-6">
-              <select
-                className="w-full border rounded-xl px-4 py-2 bg-white focus:ring-2 focus:ring-[#FA9623] outline-none"
-                value={destinyId ?? ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDestinyId(val === "NEW" ? "NEW" : Number(val));
-                }}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`w-full flex items-center justify-between pl-5 pr-4 py-4 bg-gray-50 border-2 transition-all rounded-2xl outline-none ${
+                  isDropdownOpen
+                    ? "border-[#FF8108] bg-white ring-4 ring-orange-50"
+                    : "border-transparent hover:border-gray-100"
+                }`}
               >
-                <option value="" disabled>
-                  Selecciona una zona...
-                </option>
-                {zonas
-                  .filter((z: any) => z.id !== modalState.targetZonaId)
-                  .map((z: any) => (
-                    <option key={z.id} value={z.id}>
-                      {z.nombre}
-                    </option>
-                  ))}
-                <option value="NEW">+ Crear nueva zona de migración</option>
-              </select>
+                <span
+                  className={`text-sm font-bold ${
+                    !destinyId ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
+                  {displayValue}
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-gray-400 transition-transform duration-300 ${
+                    isDropdownOpen ? "rotate-180 text-[#FF8108]" : ""
+                  }`}
+                />
+              </button>
 
-              {destinyId === "NEW" && (
+              {/* 📋 LISTA DE OPCIONES PERSONALIZADA */}
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-4xl shadow-2xl z-70 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  <ul className="max-h-60 overflow-y-auto no-scrollbar py-2">
+                    {/* 🆕 1. OPCIÓN ESPECIAL AL INICIO: CREAR NUEVA */}
+                    <li>
+                      <button
+                        onClick={() => {
+                          setDestinyId("NEW");
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-5 py-4 text-sm font-black transition-all flex items-center gap-3 cursor-pointer ${
+                          destinyId === "NEW"
+                            ? "bg-orange-50 text-[#FF8108]"
+                            : "text-[#FF8108] hover:bg-orange-50"
+                        }`}
+                      >
+                        <div
+                          className={`p-1.5 rounded-lg ${
+                            destinyId === "NEW"
+                              ? "bg-white shadow-sm"
+                              : "bg-orange-100"
+                          }`}
+                        >
+                          <Plus size={16} strokeWidth={3} />
+                        </div>
+                        <span>+ CREAR NUEVA ZONA</span>
+                      </button>
+                    </li>
+
+                    {/* 🏷️ 2. ENCABEZADO SEPARADOR */}
+                    <li className="px-5 py-3 text-[10px] font-black text-gray-300 uppercase tracking-widest border-t border-b border-gray-50 bg-gray-50/30">
+                      Zonas Disponibles para Migrar
+                    </li>
+
+                    {/* 📋 3. LISTADO DE ZONAS EXISTENTES */}
+                    {zonas
+                      .filter(
+                        (z: any) =>
+                          String(z.id) !== String(modalState.targetZonaId)
+                      )
+                      .map((z: any) => (
+                        <li key={z.id}>
+                          <button
+                            onClick={() => {
+                              setDestinyId(z.id);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-5 py-3.5 text-sm font-bold transition-all flex items-center justify-between group cursor-pointer ${
+                              String(destinyId) === String(z.id)
+                                ? "bg-orange-50 text-[#FF8108]"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                  String(destinyId) === String(z.id)
+                                    ? "bg-[#FF8108] scale-125"
+                                    : "bg-gray-200 group-hover:bg-[#FF8108]/40"
+                                }`}
+                              />
+                              {z.nombre}
+                            </div>
+                            {String(destinyId) === String(z.id) && (
+                              <div className="text-[9px] font-black uppercase tracking-tighter bg-white px-2 py-0.5 rounded-md shadow-sm border border-orange-100">
+                                Seleccionada
+                              </div>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {destinyId === "NEW" && (
+              <div className="animate-in slide-in-from-top-2 duration-300">
                 <input
-                  className="w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-[#FA9623] outline-none animate-in fade-in"
+                  className="w-full px-5 py-4 bg-white border-2 border-orange-100 rounded-2xl focus:ring-4 focus:ring-orange-50 focus:border-[#FF8108] outline-none font-bold text-sm shadow-inner placeholder:text-gray-300"
                   placeholder="Nombre de la nueva zona..."
                   value={newZoneNameMigration}
                   onChange={(e) => setNewZoneNameMigration(e.target.value)}
                   autoFocus
                 />
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-4 pt-4">
               <button
-                className="flex-1 bg-gray-100 py-2 rounded-xl font-medium"
+                className={`${btnBase} bg-gray-100 text-gray-500`}
                 onClick={closeInternal}
               >
                 Cancelar
               </button>
               <button
-                className="flex-1 bg-[#FA9623] text-white py-2 rounded-xl font-bold shadow-md hover:bg-[#e08a20]"
-                onClick={() => executeComplexAction("CONFIRM_MOVE")}
+                className={`${btnBase} bg-[#FF8108] text-white shadow-lg shadow-orange-200`}
                 disabled={
                   !destinyId || (destinyId === "NEW" && !newZoneNameMigration)
                 }
+                onClick={() => executeComplexAction("CONFIRM_MOVE")}
               >
                 Confirmar
               </button>
             </div>
-          </>
+          </div>
         );
 
       default:
@@ -225,15 +335,16 @@ export const ZonaInternalModal = ({
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[1px] animate-in fade-in duration-200"
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-[1px] animate-in fade-in duration-300"
         onClick={closeInternal}
       />
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative z-10 animate-in zoom-in-95 duration-200 overflow-hidden">
+      {/* 🛡️ IMPORTANTE: Quitamos overflow-hidden para que el dropdown no se corte */}
+      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm p-8 relative z-10 animate-in zoom-in-95 duration-300 border border-white/20">
         <button
           onClick={closeInternal}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer"
+          className="absolute top-6 right-6 text-gray-300 hover:text-gray-900 transition-colors cursor-pointer"
         >
-          <X size={20} />
+          <X size={24} strokeWidth={3} />
         </button>
         {renderContent()}
       </div>

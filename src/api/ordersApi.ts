@@ -1,6 +1,10 @@
 import { apiClient } from "./config";
 import { Order, OrderStatus } from "../types/order";
-import { parseBackendIsoToDate, formatTimeAmPm } from "../utils/time";
+import {
+  parseBackendIsoToDate,
+  formatTimeAmPm,
+  formatDateLocalYYYYMMDD,
+} from "../utils/time";
 
 export interface OrderItemBackend {
   id: number;
@@ -31,7 +35,6 @@ export interface OrderBackend {
   }>;
 }
 
-// 🆕 Nueva interfaz para los metadatos del backend
 export interface OrdersResponse {
   total: number;
   totalSolicitado: number;
@@ -80,7 +83,10 @@ export const getOrders = async (
     const { data } = await apiClient.get<OrdersResponse>(url);
 
     const mappedOrders = data.detallesOrden.map((item) => {
-      const literalDate = item.fechaHora.split("T")[0];
+      const dateObj = parseBackendIsoToDate(item.fechaHora);
+      const localDate = dateObj
+        ? formatDateLocalYYYYMMDD(dateObj)
+        : item.fechaHora.split("T")[0];
 
       return {
         id: item.id?.toString() || Math.random().toString(),
@@ -88,7 +94,7 @@ export const getOrders = async (
         waiter: item.empleado || "Sin asignar",
         waiterPhoto: item.fotoPerfilMesero,
         status: (STATUS_MAP[item.estado] || "Solicitado") as OrderStatus,
-        date: literalDate,
+        date: localDate,
         time: formatTimeAmPm(item.fechaHora),
         items: [
           {
@@ -191,15 +197,13 @@ export const getOrderById = async (id: number): Promise<Order | null> => {
 const calculateTimeInStatus = (startTime: string) => {
   if (!startTime) return "0 min";
 
-  // 🎯 FIX: No añadimos 'Z' si el string ya tiene zona horaria (+00:00)
-  // JavaScript ya entiende perfectamente el formato con +00:00
   const hasZone = /[zZ]$|[+-]\d{2}(:?\d{2})?$/.test(startTime);
   const parseable = hasZone ? startTime : `${startTime}Z`;
 
   const start = new Date(parseable).getTime();
   const now = new Date().getTime();
 
-  if (isNaN(start)) return "0 min"; // Seguridad extra
+  if (isNaN(start)) return "0 min";
 
   const diffMs = now - start;
   const diffMins = Math.floor(diffMs / (1000 * 60));

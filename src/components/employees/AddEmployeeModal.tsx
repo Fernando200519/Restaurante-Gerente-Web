@@ -1,6 +1,16 @@
 import React, { useState } from "react";
+import {
+  User,
+  Mail,
+  Phone,
+  Briefcase,
+  ChevronDown,
+  AlertCircle,
+  Contact,
+  Users2,
+} from "lucide-react";
 import BaseModal from "../ui/BaseModal";
-import type { EmployeeFormData, EmployeeRole, Gender } from "../../types/types";
+import type { EmployeeFormData } from "../../types/types";
 
 interface AddEmployeeModalProps {
   isOpen: boolean;
@@ -23,13 +33,36 @@ const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     phone: "",
   });
 
+  const [isGenderOpen, setIsGenderOpen] = useState(false);
+
+  const GENDER_OPTIONS = [
+    { value: "masculino", label: "Masculino" },
+    { value: "femenino", label: "Femenino" },
+    { value: "otro", label: "Otro" },
+  ];
+
+  const selectedGenderLabel =
+    GENDER_OPTIONS.find((g) => g.value === formData.gender)?.label ||
+    "No especificado";
+
+  const [isRoleOpen, setIsRoleOpen] = useState(false);
+
+  const ROLE_OPTIONS = [
+    { value: "mesero", label: "Cuerpo de Meseros" },
+    { value: "cocinero", label: "Equipo de Cocina" },
+    { value: "cajero", label: "Área de Cajas" },
+  ];
+
+  const selectedRoleLabel =
+    ROLE_OPTIONS.find((r) => r.value === formData.role)?.label ||
+    "Seleccionar puesto...";
+
   const [errors, setErrors] = useState<
     Partial<Record<keyof EmployeeFormData, string>>
   >({});
 
   const handleChange = (field: keyof EmployeeFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -37,19 +70,15 @@ const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof EmployeeFormData, string>> = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "El nombre es obligatorio";
-    }
-    if (!formData.paternalLastName.trim()) {
-      newErrors.paternalLastName = "El apellido paterno es obligatorio";
-    }
+    if (!formData.firstName.trim())
+      newErrors.firstName = "El nombre es requerido";
+    if (!formData.paternalLastName.trim())
+      newErrors.paternalLastName = "El apellido es requerido";
     if (!formData.username.trim()) {
-      newErrors.username = "El correo electrónico es obligatorio";
+      newErrors.username = "El correo es requerido";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.username)) {
-      newErrors.username = "Ingrese un correo electrónico válido";
+      newErrors.username = "Formato de correo inválido";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -76,163 +105,311 @@ const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({
     onClose();
   };
 
-  // --- CLASES REUTILIZABLES (ESTILO UNIFICADO) ---
-  const inputClass = (hasError: boolean) =>
-    `w-full px-4 py-2 border rounded-lg transition-all outline-none text-gray-700 ${
-      hasError
-        ? "border-red-500 focus:ring-2 focus:ring-red-200"
-        : "border-gray-300 focus:border-[#FA9623] focus:ring-2 focus:ring-[#FA9623]/20"
-    }`;
-
-  const labelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
+  const labelStyle =
+    "flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] mb-2 ml-1";
+  const inputBase =
+    "w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl outline-none transition-all font-bold text-sm text-gray-700 focus:bg-white focus:ring-4 focus:ring-orange-500/10 shadow-inner placeholder:text-gray-300";
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} title="Nuevo empleado">
-      <form onSubmit={handleSubmit} className="space-y-6 pt-2">
-        {/* Primera fila: Nombre y Apellido Paterno */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label htmlFor="firstName" className={labelClass}>
-              Nombre <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="firstName"
-              value={formData.firstName}
-              onChange={(e) => handleChange("firstName", e.target.value)}
-              className={inputClass(!!errors.firstName)}
-              placeholder="Ej. Juan"
-            />
-            {errors.firstName && (
-              <p className="mt-1 text-xs text-red-500 font-medium">
-                {errors.firstName}
-              </p>
-            )}
+    <BaseModal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Registrar Colaborador"
+    >
+      <form onSubmit={handleSubmit} className="space-y-8 pt-4">
+        {/* 👤 SECCIÓN: IDENTIDAD */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+            <Contact size={16} className="text-[#FF8108]" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+              Información Personal
+            </span>
           </div>
 
-          <div>
-            <label htmlFor="paternalLastName" className={labelClass}>
-              Apellido paterno <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="paternalLastName"
-              value={formData.paternalLastName}
-              onChange={(e) => handleChange("paternalLastName", e.target.value)}
-              className={inputClass(!!errors.paternalLastName)}
-              placeholder="Ej. Pérez"
-            />
-            {errors.paternalLastName && (
-              <p className="mt-1 text-xs text-red-500 font-medium">
-                {errors.paternalLastName}
-              </p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="group">
+              <label className={labelStyle}>
+                Nombre <span className="text-orange-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+                className={`${inputBase} ${
+                  errors.firstName
+                    ? "border-rose-200 bg-rose-50/30"
+                    : "group-hover:border-gray-100"
+                }`}
+                placeholder="Ej. Carlos"
+              />
+              {errors.firstName && (
+                <p className="mt-2 text-[10px] font-black text-rose-500 flex items-center gap-1 ml-1 uppercase animate-in fade-in slide-in-from-left-2">
+                  <AlertCircle size={12} /> {errors.firstName}
+                </p>
+              )}
+            </div>
+
+            <div className="group">
+              <label className={labelStyle}>
+                Apellido Paterno <span className="text-orange-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.paternalLastName}
+                onChange={(e) =>
+                  handleChange("paternalLastName", e.target.value)
+                }
+                className={`${inputBase} ${
+                  errors.paternalLastName
+                    ? "border-rose-200 bg-rose-50/30"
+                    : "group-hover:border-gray-100"
+                }`}
+                placeholder="Ej. González"
+              />
+              {errors.paternalLastName && (
+                <p className="mt-2 text-[10px] font-black text-rose-500 flex items-center gap-1 ml-1 uppercase animate-in fade-in slide-in-from-left-2">
+                  <AlertCircle size={12} /> {errors.paternalLastName}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="group">
+              <label className={labelStyle}>Apellido Materno</label>
+              <input
+                type="text"
+                value={formData.maternalLastName}
+                onChange={(e) =>
+                  handleChange("maternalLastName", e.target.value)
+                }
+                className={`${inputBase} group-hover:border-gray-100`}
+                placeholder="Opcional"
+              />
+            </div>
+
+            <div className="group relative">
+              <label className={labelStyle}>Género</label>
+
+              {/* 🎯 GENDER TRIGGER BUTTON */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsGenderOpen(!isGenderOpen)}
+                  className={`${inputBase} flex items-center justify-between appearance-none cursor-pointer ${
+                    isGenderOpen
+                      ? "border-[#FF8108] bg-white ring-4 ring-orange-50"
+                      : "group-hover:border-gray-100"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-bold ${
+                      !formData.gender ? "text-gray-400" : "text-gray-700"
+                    }`}
+                  >
+                    {selectedGenderLabel}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-400 transition-transform duration-300 ${
+                      isGenderOpen ? "rotate-180 text-[#FF8108]" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* 📋 LISTA DE OPCIONES (Sustituye al <select> nativo) */}
+                {isGenderOpen && (
+                  <>
+                    {/* Capa invisible para cerrar al hacer clic fuera */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsGenderOpen(false)}
+                    />
+
+                    <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-4xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <ul className="py-2">
+                        {/* Mapeo de opciones reales */}
+                        {GENDER_OPTIONS.map((opt) => (
+                          <li key={opt.value}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleChange("gender", opt.value);
+                                setIsGenderOpen(false);
+                              }}
+                              className={`w-full text-left px-6 py-3.5 text-sm font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                                formData.gender === opt.value
+                                  ? "bg-orange-50 text-[#FF8108]"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                  formData.gender === opt.value
+                                    ? "bg-[#FF8108] scale-125"
+                                    : "bg-gray-200"
+                                }`}
+                              />
+                              {opt.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Segunda fila: Apellido Materno y Puesto */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label htmlFor="maternalLastName" className={labelClass}>
-              Apellido materno
-            </label>
-            <input
-              type="text"
-              id="maternalLastName"
-              value={formData.maternalLastName}
-              onChange={(e) => handleChange("maternalLastName", e.target.value)}
-              className={inputClass(false)}
-              placeholder="Opcional"
-            />
+        {/* 💼 SECCIÓN: PERFIL OPERATIVO */}
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+            <Briefcase size={16} className="text-[#FF8108]" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+              Configuración de Cuenta
+            </span>
           </div>
 
-          <div>
-            <label htmlFor="role" className={labelClass}>
-              Puesto <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="role"
-              value={formData.role}
-              onChange={(e) => handleChange("role", e.target.value)}
-              className={inputClass(!!errors.role)}
-            >
-              <option value="mesero">Mesero</option>
-              <option value="cocinero">Cocinero</option>
-              <option value="cajero">Cajero</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="group relative">
+              <label className={labelStyle}>
+                Puesto de Trabajo <span className="text-orange-500">*</span>
+              </label>
+
+              <div className="relative">
+                {/* 🎯 TRIGGER DEL SELECTOR PERSONALIZADO */}
+                <button
+                  type="button"
+                  onClick={() => setIsRoleOpen(!isRoleOpen)}
+                  className={`${inputBase} flex items-center justify-between appearance-none cursor-pointer transition-all ${
+                    isRoleOpen
+                      ? "border-[#FF8108] bg-white ring-4 ring-orange-50"
+                      : "group-hover:border-gray-100"
+                  }`}
+                >
+                  <span
+                    className={`text-sm font-bold ${
+                      !formData.role ? "text-gray-400" : "text-gray-700"
+                    }`}
+                  >
+                    {selectedRoleLabel}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-400 transition-transform duration-300 ${
+                      isRoleOpen ? "rotate-180 text-[#FF8108]" : ""
+                    }`}
+                  />
+                </button>
+
+                {/* 📋 LISTA DE ROLES (Sustituye al <select> nativo) */}
+                {isRoleOpen && (
+                  <>
+                    {/* Capa para cerrar al hacer clic fuera */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsRoleOpen(false)}
+                    />
+
+                    <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-4xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                      <ul className="py-2">
+                        {/* Mapeo de opciones operativas */}
+                        {ROLE_OPTIONS.map((opt) => (
+                          <li key={opt.value}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleChange("role", opt.value);
+                                setIsRoleOpen(false);
+                              }}
+                              className={`w-full text-left px-6 py-4 text-sm font-bold transition-all flex items-center justify-between group cursor-pointer ${
+                                formData.role === opt.value
+                                  ? "bg-orange-50 text-[#FF8108]"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`w-1.5 h-1.5 rounded-full transition-all ${
+                                    formData.role === opt.value
+                                      ? "bg-[#FF8108] scale-125"
+                                      : "bg-gray-200"
+                                  }`}
+                                />
+                                {opt.label}
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="group">
+              <label className={labelStyle}>
+                Correo Corporativo <span className="text-orange-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={formData.username}
+                  onChange={(e) => handleChange("username", e.target.value)}
+                  className={`${inputBase} ${
+                    errors.username
+                      ? "border-rose-200 bg-rose-50/30"
+                      : "group-hover:border-gray-100"
+                  }`}
+                  placeholder="usuario@mesalibre.com"
+                />
+                <Mail
+                  size={16}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300"
+                />
+              </div>
+              {errors.username && (
+                <p className="mt-2 text-[10px] font-black text-rose-500 flex items-center gap-1 ml-1 uppercase animate-in fade-in slide-in-from-left-2">
+                  <AlertCircle size={12} /> {errors.username}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="group max-w-md">
+            <label className={labelStyle}>Teléfono de Contacto</label>
+            <div className="relative">
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => handleChange("phone", e.target.value)}
+                className={`${inputBase} group-hover:border-gray-100`}
+                placeholder="10 dígitos"
+              />
+              <Phone
+                size={16}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Tercera fila: Género y Usuario (Email) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label htmlFor="gender" className={labelClass}>
-              Género
-            </label>
-            <select
-              id="gender"
-              value={formData.gender}
-              onChange={(e) => handleChange("gender", e.target.value)}
-              className={inputClass(false)}
-            >
-              <option value="">Seleccionar...</option>
-              <option value="masculino">Masculino</option>
-              <option value="femenino">Femenino</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="username" className={labelClass}>
-              Correo electrónico <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              id="username"
-              value={formData.username}
-              onChange={(e) => handleChange("username", e.target.value)}
-              className={inputClass(!!errors.username)}
-              placeholder="correo@ejemplo.com"
-            />
-            {errors.username && (
-              <p className="mt-1 text-xs text-red-500 font-medium">
-                {errors.username}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Cuarta fila: Teléfono */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label htmlFor="phone" className={labelClass}>
-              Teléfono
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              className={inputClass(false)}
-              placeholder="10 dígitos (Opcional)"
-            />
-          </div>
-        </div>
-
-        {/* Footer de Botones */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-2">
+        {/* 🛠️ FOOTER ACCIONES */}
+        <div className="flex justify-end gap-4 pt-8 border-t border-gray-100 mt-4">
           <button
             type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+            onClick={handleClose}
+            className="px-8 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 cursor-pointer"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-6 py-2.5 bg-[#FA9623] hover:bg-[#e68a1f] text-white font-medium rounded-lg transition-colors shadow-sm"
+            className="px-10 py-3.5 bg-[#FF8108] text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-lg shadow-orange-200 transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
-            Guardar
+            Guardar Colaborador
           </button>
         </div>
       </form>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,7 +8,7 @@ import {
   Hash,
   SearchX,
 } from "lucide-react";
-import { Order, OrderStatus } from "../../types/order";
+import { Order } from "../../types/order";
 
 interface OrdersTableProps {
   orders: Order[];
@@ -101,11 +101,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               const config =
                 STATUS_CONFIG[statusKey] || STATUS_CONFIG.solicitado;
 
-              // ⏳ LÓGICA DE TIEMPO FINALIZADO
               const isFinalized =
                 statusKey === "entregado" || statusKey === "cancelada";
 
-              // ✅ DETERMINAMOS EL MENSAJE DEL TOOLTIP
               const tooltipMessage =
                 statusKey === "entregado"
                   ? "Entrega finalizada"
@@ -126,9 +124,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <td className="px-8 py-5 whitespace-nowrap">
                     <div className="flex flex-col">
                       <span className="text-sm font-black text-gray-900 tabular-nums">
-                        {new Date(
-                          order.date + "T00:00:00"
-                        ).toLocaleDateString()}
+                        {order.date.split("-").reverse().join("/")}
                       </span>
                       <div className="flex items-center gap-1.5 text-gray-400">
                         <Clock size={12} />

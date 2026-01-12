@@ -1,4 +1,5 @@
 import React from "react";
+import { UserPlus } from "lucide-react";
 
 interface AddEmployeeButtonProps {
   onClick: () => void;
@@ -8,27 +9,16 @@ const AddEmployeeButton: React.FC<AddEmployeeButtonProps> = ({ onClick }) => {
   return (
     <button
       onClick={onClick}
-      className="shrink-0 px-4 py-2 bg-[#FA9623] text-white rounded-lg font-medium hover:bg-[#e68a1f] transition shadow-sm flex items-center gap-2 cursor-pointer"
-      style={{ backgroundColor: "#FF8108" }}
-      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FA9623")}
-      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FF8108")}
+      className="shrink-0 flex items-center justify-center gap-3 px-8 py-4 bg-[#FF8108] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all hover:scale-105 active:scale-95 hover:shadow-xl hover:shadow-orange-200 cursor-pointer group shadow-lg shadow-orange-100/50 border border-orange-400/20"
     >
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <line x1="19" y1="8" x2="19" y2="14" />
-        <line x1="22" y1="11" x2="16" y2="11" />
-      </svg>
-      <span>Agregar Empleado</span>
+      {/* 👤 ICONO CON EFECTO DE GRUPO */}
+      <UserPlus
+        size={18}
+        strokeWidth={3}
+        className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-12"
+      />
+
+      <span>Registrar Colaborador</span>
     </button>
   );
 };
