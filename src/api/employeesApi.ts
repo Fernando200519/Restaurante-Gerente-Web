@@ -1,47 +1,42 @@
 import { apiClient } from "./config";
-import type { Employee, EmployeeFormData, Gender } from "../types/types";
+import type { Employee, EmployeeFormData, Gender } from "../types/employee";
 
-// Tipos para la API (formato que espera el backend)
 interface CreateUserRequest {
   nombre: string;
   apellidoPaterno: string;
-  apellidoMaterno: string; // Requerido según el schema
-  genero: string; // Requerido: "Masculino", "Femenino", "Otro"
+  apellidoMaterno: string;
+  genero: string;
   correo: string;
-  tipo: string; // Requerido: "Mesero", "Cocina", "Cajero", "Gerente", "Administrador"
-  telefono?: string; // Opcional, exactamente 10 caracteres si se proporciona
+  tipo: string;
+  telefono?: string;
 }
 
-// El UpdateUserDTO del backend solo acepta estos campos:
 interface UpdateUserRequest {
-  correo?: string; // nullable: true
-  telefono?: string; // nullable: true, maxLength: 10
-  // NOTA: contraseña fue removida según requerimientos del usuario
+  correo?: string;
+  telefono?: string;
 }
 
 interface UserResponse {
-  id: number | string; // La API puede devolver número o string
+  id: number | string;
   nombre: string;
   apellidoPaterno: string;
   apellidoMaterno?: string | null;
   genero?: string | null;
   correo: string;
   telefono?: string | null;
-  tipo?: string; // Campo que devuelve la API (ej: "Mesero", "Cocinero", "Cajero")
-  // Agregar otros campos que devuelva la API si los hay
+  tipo?: string;
+  fotoPerfil?: string | null;
 }
 
-// Función para mapear el role del frontend al tipo del backend
 const mapRoleToTipo = (role: Employee["role"]): string => {
   const roleMap: Record<Employee["role"], string> = {
     mesero: "Mesero",
-    cocinero: "Cocina", // El backend usa "Cocina" no "Cocinero"
+    cocinero: "Cocina",
     cajero: "Cajero",
   };
   return roleMap[role] || "Mesero";
 };
 
-// Función para mapear el gender del frontend al genero del backend
 const mapGenderToGenero = (gender?: Gender): string | undefined => {
   if (!gender) return undefined;
   const genderMap: Record<Gender, string> = {
@@ -52,76 +47,65 @@ const mapGenderToGenero = (gender?: Gender): string | undefined => {
   return genderMap[gender];
 };
 
-// Función para limpiar y validar el teléfono (debe tener exactamente 10 caracteres)
 const cleanPhone = (phone?: string): string | undefined => {
   if (!phone) return undefined;
-  // Remover espacios, guiones y otros caracteres
   const cleaned = phone.replace(/\D/g, "");
-  // Si tiene exactamente 10 dígitos, devolverlo
   if (cleaned.length === 10) return cleaned;
-  // Si tiene más de 10, tomar los primeros 10
   if (cleaned.length > 10) return cleaned.substring(0, 10);
-  // Si tiene menos de 10, devolver undefined (no cumple con la validación)
   return undefined;
 };
 
-// Función para mapear EmployeeFormData al formato de la API
 const mapFormDataToAPI = (formData: EmployeeFormData): CreateUserRequest => {
   const cleanedPhone = cleanPhone(formData.phone);
 
-  // El backend requiere apellidoMaterno y genero, así que usamos valores por defecto si no vienen
   const apellidoMaterno = formData.maternalLastName || "";
-  const genero = mapGenderToGenero(formData.gender) || "Otro"; // Por defecto "Otro" si no se especifica
+  const genero = mapGenderToGenero(formData.gender) || "Otro";
 
   return {
     nombre: formData.firstName,
     apellidoPaterno: formData.paternalLastName,
     apellidoMaterno: apellidoMaterno,
     genero: genero,
-    correo: formData.username, // username ahora es el email
-    tipo: mapRoleToTipo(formData.role), // Mapear role a tipo con mayúscula inicial
+    correo: formData.username,
+    tipo: mapRoleToTipo(formData.role),
     telefono: cleanedPhone,
   };
 };
 
-// Función para mapear el tipo de la API al role del frontend
 const mapTipoToRole = (tipo?: string): Employee["role"] => {
-  if (!tipo) return "mesero"; // Por defecto
+  if (!tipo) return "mesero";
 
   const tipoLower = tipo.toLowerCase();
   if (tipoLower.includes("mesero") || tipoLower === "mesero") return "mesero";
   if (tipoLower.includes("cocina") || tipoLower.includes("cocinero"))
-    return "cocinero"; // El backend usa "Cocina"
+    return "cocinero";
   if (tipoLower.includes("cajero") || tipoLower === "cajero") return "cajero";
 
-  return "mesero"; // Por defecto si no coincide
+  return "mesero";
 };
 
-// Función para mapear la respuesta de la API a Employee
 const mapAPIResponseToEmployee = (user: UserResponse): Employee => {
-  // Construir el nombre completo, manejando null y valores vacíos
   const nameParts = [
     user.nombre?.trim(),
     user.apellidoPaterno?.trim(),
     user.apellidoMaterno?.trim(),
-  ].filter((part) => part && part.length > 0); // Filtrar null, undefined y strings vacíos
+  ].filter((part) => part && part.length > 0);
 
   const fullName = nameParts.length > 0 ? nameParts.join(" ") : "Sin nombre";
 
   return {
-    id: String(user.id), // Convertir a string si viene como número
+    id: String(user.id),
     name: fullName,
-    username: user.correo || "", // El correo se guarda en username
-    phone: user.telefono || "", // Mapear teléfono de la API (manejar null)
-    role: mapTipoToRole(user.tipo), // Mapear tipo de la API al role
-    status: "activo", // Por defecto, ajustar según lo que devuelva la API
-    gender: (user.genero as Employee["gender"]) || undefined, // Mapear género de la API
+    username: user.correo || "",
+    phone: user.telefono || "",
+    role: mapTipoToRole(user.tipo),
+    status: "activo",
+    gender: (user.genero?.toLowerCase() as Employee["gender"]) || undefined,
+    avatar: user.fotoPerfil || undefined,
   };
 };
 
-// Servicios de API para empleados
 export const employeesAPI = {
-  // Obtener todos los empleados
   getAll: async (): Promise<Employee[]> => {
     try {
       const response = await apiClient.get<UserResponse[]>("/users");
@@ -132,7 +116,6 @@ export const employeesAPI = {
     }
   },
 
-  // Crear un nuevo empleado
   create: async (formData: EmployeeFormData): Promise<Employee> => {
     try {
       const requestData = mapFormDataToAPI(formData);
@@ -159,8 +142,6 @@ export const employeesAPI = {
     }
   },
 
-  // Actualizar un empleado
-  // El backend solo acepta correo y telefono en el PATCH
   update: async (
     id: string,
     data: Partial<EmployeeFormData> & {
@@ -172,19 +153,15 @@ export const employeesAPI = {
     try {
       const updateData: UpdateUserRequest = {};
 
-      // Solo enviar correo si se está actualizando
       if (data.username !== undefined) {
         updateData.correo = data.username;
       }
 
-      // Solo enviar telefono si se está actualizando y es válido
       if (data.phone !== undefined) {
         const cleanedPhone = cleanPhone(data.phone);
-        // Si el teléfono está vacío o no es válido, enviar null/undefined para eliminarlo
         if (cleanedPhone) {
           updateData.telefono = cleanedPhone;
         } else if (data.phone === "" || data.phone.trim() === "") {
-          // Si el usuario borró el teléfono, enviar null (el backend lo acepta como nullable)
           updateData.telefono = undefined;
         }
       }
@@ -217,7 +194,6 @@ export const employeesAPI = {
     }
   },
 
-  // Eliminar un empleado
   delete: async (id: string): Promise<void> => {
     try {
       await apiClient.delete(`/users/${id}`);

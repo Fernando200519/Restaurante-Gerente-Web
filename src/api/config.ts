@@ -1,29 +1,31 @@
 import axios from "axios";
 import { getToken, saveToken, removeToken } from "../utils/storage";
-import { refreshSession } from "./authApi";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://137.184.191.81";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: false,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
 });
 
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = getToken();
-    if (token) {
-      config.headers = config.headers || {};
-      (config.headers as any).Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -31,28 +33,45 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
-        const newToken = await refreshSession();
+        const { data } = await axios.post(
+          `${API_BASE_URL}/refresh`,
+          {},
+          {
+            withCredentials: true,
+          }
+        );
 
-        saveToken(newToken);
+        const { accessToken } = data;
 
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        saveToken(accessToken);
+        processQueue(null, accessToken);
 
-        apiClient.defaults.headers.common[
-          "Authorization"
-        ] = `Bearer ${newToken}`;
-
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        console.error("La sesión expiró y no se pudo renovar:", refreshError);
+        processQueue(refreshError, null);
         removeToken();
         window.location.href = "/login";
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
-    console.error("Error en la API:", error);
     return Promise.reject(error);
   }
 );

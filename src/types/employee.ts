@@ -12,6 +12,7 @@ export type Employee = {
   role: EmployeeRole;
   status: EmployeeStatus;
   gender?: Gender;
+  avatar?: string;
 };
 
 export type EmployeeFormData = {

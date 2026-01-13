@@ -81,8 +81,8 @@ export const useProducts = (categories: Category[]) => {
         for (const c of compsEditados) {
           if (c.id) {
             await productsAPI.updateComplement(productId, c.id, {
-              Nombre: c.nombre,
-              Precio: c.precio,
+              nombre: c.nombre,
+              precio: c.precio,
             });
           }
         }
@@ -91,7 +91,7 @@ export const useProducts = (categories: Category[]) => {
         for (const i of ingsEditados) {
           if (i.id) {
             await productsAPI.updateIngredient(productId, i.id, {
-              Nombre: i.nombre,
+              nombre: i.nombre,
             });
           }
         }
@@ -110,8 +110,15 @@ export const useProducts = (categories: Category[]) => {
   };
 
   const deleteProduct = async (id: string) => {
-    await productsAPI.delete(id);
-    await loadProducts();
+    try {
+      setLoading(true);
+      await productsAPI.delete(id);
+      await loadProducts();
+    } catch (err) {
+      setError("No se pudo eliminar el producto");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredProducts = useMemo(() => {

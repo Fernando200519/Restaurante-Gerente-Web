@@ -2,11 +2,11 @@ import React, { useState, useMemo } from "react";
 import {
   AlertTriangle,
   Trash2,
-  MoveRight,
+  ArrowRightLeft,
   FileQuestion,
-  PlusCircle,
-  FolderTree,
-  Info, // ✅ Nuevo icono para la nota informativa
+  Plus,
+  ChevronDown,
+  CheckCircle2,
 } from "lucide-react";
 import BaseModal from "../ui/BaseModal";
 import type { Category } from "../../types/menu";
@@ -42,10 +42,10 @@ const DeleteCategoryModal: React.FC<DeleteCategoryModalProps> = ({
   );
   const [targetCategoryId, setTargetCategoryId] = useState<string>("");
   const [newCategoryName, setNewCategoryName] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const availableCategories = useMemo(() => {
     if (!category) return [];
-
     return categories.filter(
       (cat) =>
         cat.id !== category.id &&
@@ -73,226 +73,272 @@ const DeleteCategoryModal: React.FC<DeleteCategoryModalProps> = ({
     setMoveSubOption("existing");
     setTargetCategoryId("");
     setNewCategoryName("");
+    setIsDropdownOpen(false);
     onClose();
   };
 
-  const isConfirmDisabled = () => {
-    if (selectedOption === "move") {
-      return moveSubOption === "existing"
-        ? !targetCategoryId
-        : !newCategoryName.trim();
-    }
-    return false;
-  };
+  const cardBase =
+    "w-full text-left p-5 rounded-[2rem] border-2 transition-all group flex items-start gap-4 cursor-pointer mb-3 relative overflow-hidden";
+  const labelStyle =
+    "text-[10px] font-black uppercase text-gray-400 tracking-[0.15em] mb-2 block ml-1";
+  const inputBase =
+    "w-full px-5 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl outline-none transition-all font-bold text-sm text-gray-700 focus:bg-white focus:ring-4 focus:ring-orange-500/10 shadow-inner";
 
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={resetAndClose}
-      title="Eliminar Categoría"
+      title="Gestionar Baja de Categoría"
     >
-      <div className="space-y-6">
-        {/* Alerta inicial */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
-          <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+      <div className="space-y-6 pt-2">
+        {/* 🚨 ENCABEZADO DE ADVERTENCIA */}
+        <div className="bg-rose-50 border border-rose-100 rounded-4xl p-6 flex gap-4 items-center animate-in fade-in slide-in-from-top-2">
+          <div className="bg-white p-3 rounded-2xl shadow-sm text-rose-500">
+            <AlertTriangle size={24} strokeWidth={2.5} />
+          </div>
           <div>
-            <h4 className="text-amber-900 font-bold text-sm">
-              Atención necesaria
+            <h4 className="text-[11px] font-black uppercase tracking-widest text-rose-900">
+              Atención Gerencial
             </h4>
-            <p className="text-amber-700 text-xs mt-1">
-              Estás por eliminar <b>"{category.name}"</b> con{" "}
-              <b>{productsCount} producto(s)</b>.
+            <p className="text-sm font-bold text-rose-800/80 leading-tight">
+              Eliminarás{" "}
+              <span className="text-rose-900 font-black">
+                "{category.name}"
+              </span>{" "}
+              y afectarás a{" "}
+              <span className="font-black text-rose-900">{productsCount}</span>{" "}
+              productos.
             </p>
           </div>
         </div>
 
         <div className="space-y-3">
-          {/* Opción 1: Dejar huérfanos */}
+          {/* 🟦 OPCIÓN 1: DESVINCULAR */}
           <button
             onClick={() => setSelectedOption("no-category")}
-            className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+            className={`${cardBase} ${
               selectedOption === "no-category"
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-100 hover:border-gray-200"
+                ? "border-blue-500 bg-blue-50/50 shadow-lg shadow-blue-100"
+                : "border-gray-50 hover:border-gray-100 bg-white"
             }`}
           >
             <div
-              className={`p-2 rounded-lg ${
+              className={`p-3 rounded-2xl transition-all ${
                 selectedOption === "no-category"
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100 text-gray-400"
               }`}
             >
-              <FileQuestion size={20} />
+              <FileQuestion size={20} strokeWidth={2.5} />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-gray-900 text-sm">
+              <div className="font-black text-gray-900 text-xs uppercase tracking-tight">
                 Desvincular productos
               </div>
-              <p className="text-gray-500 text-xs mt-0.5">
-                Quedarán marcados como "Sin categoría".
+              <p className="text-[10px] font-bold text-gray-400 mt-0.5">
+                Los platillos quedarán sin clasificación asignada.
               </p>
             </div>
+            {selectedOption === "no-category" && (
+              <CheckCircle2
+                size={18}
+                className="text-blue-500 absolute top-4 right-4"
+              />
+            )}
           </button>
 
-          {/* Opción 2: Mover productos (Con Restricción de Nivel) */}
+          {/* 🟧 OPCIÓN 2: MIGRAR (COMPLEJA) */}
           <div
-            className={`rounded-xl border-2 transition-all overflow-hidden ${
+            className={`rounded-[2.5rem] border-2 transition-all ${
               selectedOption === "move"
-                ? "border-orange-500 bg-orange-50/30"
-                : "border-gray-100"
+                ? "border-orange-500 bg-orange-50/30 shadow-lg shadow-orange-100"
+                : "border-gray-50 bg-white"
             }`}
           >
             <button
               onClick={() => setSelectedOption("move")}
-              className="w-full flex items-start gap-4 p-4 text-left"
+              className="w-full flex items-start gap-4 p-5 text-left relative"
             >
               <div
-                className={`p-2 rounded-lg ${
+                className={`p-3 rounded-2xl transition-all ${
                   selectedOption === "move"
-                    ? "bg-orange-500 text-white"
+                    ? "bg-[#FF8108] text-white"
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
-                <MoveRight size={20} />
+                <ArrowRightLeft size={20} strokeWidth={2.5} />
               </div>
               <div className="flex-1">
-                <div className="font-bold text-gray-900 text-sm">
+                <div className="font-black text-gray-900 text-xs uppercase tracking-tight">
                   Migrar a otra categoría
                 </div>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  Mueve los productos a una categoría del mismo nivel.
+                <p className="text-[10px] font-bold text-gray-400 mt-0.5">
+                  Mueve el inventario a un nivel hermano o nuevo.
                 </p>
               </div>
+              {selectedOption === "move" && (
+                <CheckCircle2
+                  size={18}
+                  className="text-[#FF8108] absolute top-4 right-4"
+                />
+              )}
             </button>
 
             {selectedOption === "move" && (
-              <div className="px-4 pb-4 ml-14 space-y-4 animate-in slide-in-from-top-2">
-                {/* ℹ️ NOTA INFORMATIVA */}
-                <div className="flex items-center gap-2 text-[10px] text-orange-600 bg-orange-100/50 p-2 rounded-lg">
-                  <Info size={14} />
-                  <span>
-                    Solo puedes migrar productos entre categorías del mismo
-                    nivel.
-                  </span>
-                </div>
-
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-600">
-                    <input
-                      type="radio"
-                      checked={moveSubOption === "existing"}
-                      onChange={() => setMoveSubOption("existing")}
-                      className="text-orange-500"
-                    />
+              <div className="px-6 pb-6 ml-12 space-y-5 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex gap-4 p-1 bg-gray-100 rounded-xl w-fit">
+                  <button
+                    onClick={() => setMoveSubOption("existing")}
+                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                      moveSubOption === "existing"
+                        ? "bg-white text-[#FF8108] shadow-sm"
+                        : "text-gray-400"
+                    }`}
+                  >
                     Existente
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-600">
-                    <input
-                      type="radio"
-                      checked={moveSubOption === "new"}
-                      onChange={() => setMoveSubOption("new")}
-                      className="text-orange-500"
-                    />
+                  </button>
+                  <button
+                    onClick={() => setMoveSubOption("new")}
+                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                      moveSubOption === "new"
+                        ? "bg-white text-[#FF8108] shadow-sm"
+                        : "text-gray-400"
+                    }`}
+                  >
                     Nueva
-                  </label>
+                  </button>
                 </div>
 
                 {moveSubOption === "existing" ? (
-                  <div className="relative">
-                    <FolderTree
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={16}
-                    />
-                    <select
-                      value={targetCategoryId}
-                      onChange={(e) => setTargetCategoryId(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400/20"
+                  <div className="relative group">
+                    <label className={labelStyle}>Categoría Destino</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className={`${inputBase} flex items-center justify-between group-hover:border-orange-100`}
                     >
-                      {availableCategories.length > 0 ? (
-                        <>
-                          <option value="">Selecciona destino...</option>
-                          {availableCategories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.name}
-                            </option>
-                          ))}
-                        </>
-                      ) : (
-                        <option value="">
-                          No hay categorías hermanas disponibles
-                        </option>
-                      )}
-                    </select>
+                      <span
+                        className={
+                          targetCategoryId ? "text-gray-700" : "text-gray-300"
+                        }
+                      >
+                        {categories.find((c) => c.id === targetCategoryId)
+                          ?.name || "Seleccionar destino..."}
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        className={`text-gray-400 transition-transform ${
+                          isDropdownOpen ? "rotate-180 text-[#FF8108]" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isDropdownOpen && (
+                      <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                        <ul className="max-h-40 overflow-y-auto no-scrollbar py-2">
+                          {availableCategories.length > 0 ? (
+                            availableCategories.map((cat) => (
+                              <li key={cat.id}>
+                                <button
+                                  onClick={() => {
+                                    setTargetCategoryId(cat.id);
+                                    setIsDropdownOpen(false);
+                                  }}
+                                  className="w-full text-left px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-[#FF8108] transition-all"
+                                >
+                                  {cat.name}
+                                </button>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="px-5 py-3 text-[10px] font-black text-gray-300 uppercase text-center italic">
+                              Sin categorías hermanas
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="relative">
-                    <PlusCircle
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={16}
-                    />
-                    <input
-                      type="text"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      placeholder="Nombre de la nueva categoría"
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-orange-400/20"
-                    />
+                  <div className="group">
+                    <label className={labelStyle}>
+                      Nombre de Categoría Nueva
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Ej. Platillos de Temporada"
+                        className={`${inputBase} group-hover:border-orange-100`}
+                        autoFocus
+                      />
+                      <Plus
+                        size={16}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Opción 3: Borrado total */}
+          {/* 🟥 OPCIÓN 3: BORRADO TOTAL */}
           <button
             onClick={() => setSelectedOption("delete-all")}
-            className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+            className={`${cardBase} ${
               selectedOption === "delete-all"
-                ? "border-red-500 bg-red-50"
-                : "border-gray-100 hover:border-gray-200"
+                ? "border-rose-500 bg-rose-50/50 shadow-lg shadow-rose-100"
+                : "border-gray-50 hover:border-gray-100 bg-white"
             }`}
           >
             <div
-              className={`p-2 rounded-lg ${
+              className={`p-3 rounded-2xl transition-all ${
                 selectedOption === "delete-all"
-                  ? "bg-red-500 text-white"
+                  ? "bg-rose-500 text-white"
                   : "bg-gray-100 text-gray-400"
               }`}
             >
-              <Trash2 size={20} />
+              <Trash2 size={20} strokeWidth={2.5} />
             </div>
             <div className="flex-1">
-              <div className="font-bold text-red-700 text-sm">
-                Borrado total
+              <div className="font-black text-rose-700 text-xs uppercase tracking-tight">
+                Borrado total del sistema
               </div>
-              <p className="text-red-400 text-xs mt-0.5">
-                Eliminará permanentemente la categoría y sus {productsCount}{" "}
-                productos.
+              <p className="text-[10px] font-bold text-rose-400 mt-0.5">
+                Eliminarás la categoría y sus {productsCount} productos para
+                siempre.
               </p>
             </div>
+            {selectedOption === "delete-all" && (
+              <CheckCircle2
+                size={18}
+                className="text-rose-500 absolute top-4 right-4"
+              />
+            )}
           </button>
         </div>
 
-        {/* Acciones */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+        {/* 🛠️ FOOTER ACCIONES */}
+        <div className="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-2">
           <button
             onClick={resetAndClose}
-            className="px-6 py-2 text-gray-500 font-bold text-sm hover:bg-gray-100 rounded-xl transition-all"
+            className="px-8 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black text-[11px] uppercase tracking-widest rounded-2xl transition-all active:scale-95 cursor-pointer"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirm}
             disabled={
-              isConfirmDisabled() ||
-              (moveSubOption === "existing" &&
-                availableCategories.length === 0 &&
-                selectedOption === "move")
+              selectedOption === "move" &&
+              (moveSubOption === "existing"
+                ? !targetCategoryId
+                : !newCategoryName.trim())
             }
-            className="px-8 py-2 bg-[#FF8108] hover:bg-[#FF8108]/90 text-white font-bold text-sm rounded-xl shadow-lg disabled:bg-gray-200 disabled:shadow-none transition-all active:scale-95"
+            className="px-10 py-3.5 bg-[#FF8108] text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-lg shadow-orange-200 transition-all hover:scale-105 active:scale-95 disabled:bg-gray-200 disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
           >
-            Confirmar Acción
+            Confirmar Operación
           </button>
         </div>
       </div>

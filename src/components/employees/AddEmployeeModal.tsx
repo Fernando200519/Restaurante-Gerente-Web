@@ -10,7 +10,7 @@ import {
   Users2,
 } from "lucide-react";
 import BaseModal from "../ui/BaseModal";
-import type { EmployeeFormData } from "../../types/types";
+import type { EmployeeFormData } from "../../types/employee";
 
 interface AddEmployeeModalProps {
   isOpen: boolean;

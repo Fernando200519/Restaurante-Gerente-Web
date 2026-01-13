@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   List,
   AlertCircle,
+  ArrowRightLeft,
 } from "lucide-react";
 import MenuTabs from "../components/menu/MenuTabs";
 import CategoryTable from "../components/menu/CategoryTable";
@@ -22,6 +23,8 @@ import { useProducts } from "../hooks/useProducts";
 import { categoriesAPI } from "../api/categoriesApi";
 import type { Category } from "../types/menu";
 import { CategoryFormData } from "../types/menu";
+import { ConfirmDeleteModal } from "../components/ui/ConfirmDeleteModal";
+import MassMoveProductsModal from "../components/menu/MassMoveProducts";
 
 const MenuPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
@@ -39,6 +42,9 @@ const MenuPage = () => {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
+
+  const [isConfirmProdDeleteOpen, setIsConfirmProdDeleteOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<any | null>(null);
 
   const {
     categories,
@@ -65,17 +71,32 @@ const MenuPage = () => {
     loadProducts,
   } = useProducts(categories);
 
-  // 1. Asegúrate de que tu estado se llame así:
   const [isCatModalOpen, setIsCatModalOpen] = useState(false);
+  const [isMassMoveOpen, setIsMassMoveOpen] = useState(false);
 
-  // 2. La función handleSave corregida:
+  const handleMassMove = async (targetCategoryId: string) => {
+    await handleComplexDelete(() =>
+      categoriesAPI.moveProducts("3", targetCategoryId)
+    );
+    setIsMassMoveOpen(false);
+  };
+
   const handleSave = async (data: CategoryFormData) => {
     try {
-      // Usamos el hook de categories que ya tenemos
       await saveCategory(data, selectedCategory || undefined);
-      setIsCatModalOpen(false); // ✅ Nombre correcto del estado
+      setIsCatModalOpen(false);
     } catch (error) {
       console.error("Error al guardar:", error);
+    }
+  };
+
+  const handleComplexDelete = async (action: () => Promise<any>) => {
+    try {
+      await action();
+      await Promise.all([loadCategories(), loadProducts()]);
+      setIsDelModalOpen(false);
+    } catch (error) {
+      console.error("Error en operación de categoría:", error);
     }
   };
 
@@ -115,11 +136,6 @@ const MenuPage = () => {
     }
   };
 
-  const onSaveCategory = async (data: any) => {
-    await saveCategory(data, selectedCategory || undefined);
-    setIsCatModalOpen(false);
-  };
-
   const onSaveProduct = async (data: any) => {
     await saveProduct(data, selectedProduct || undefined);
     setIsProdModalOpen(false);
@@ -139,11 +155,21 @@ const MenuPage = () => {
     return categories;
   }, [categories, products]);
 
+  const handleOpenDeleteProdModal = (product: any) => {
+    setProductToDelete(product);
+    setIsConfirmProdDeleteOpen(true);
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (productToDelete) {
+      await deleteProduct(productToDelete.id);
+      setIsConfirmProdDeleteOpen(false);
+      setProductToDelete(null);
+    }
+  };
+
   return (
-    /* ✅ w-full asegura que use el 100%, max-w-7xl o [1600px] da el límite premium */
     <main className="w-full max-w-full overflow-hidden">
-      {/* ✅ Bloqueo de ancho */}
-      {/* 🚨 ALERTAS DE ERROR */}
       {(catError || prodError) && (
         <div className="mb-8 p-5 bg-rose-50 border-l-4 border-rose-500 rounded-2xl flex items-center gap-4 text-rose-800 animate-in slide-in-from-top-4 duration-500 shadow-sm">
           <AlertCircle className="text-rose-500 shrink-0" size={24} />
@@ -168,6 +194,7 @@ const MenuPage = () => {
           {activeTab === "categories" ? "Nueva Categoría" : "Nuevo Platillo"}
         </button>
       </div>
+
       {/* 🛠️ TOOLBAR: Forzamos el ancho al 100% del Layout */}
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-6 mb-10 w-full max-w-full overflow-hidden relative">
         <div className="flex flex-col gap-8">
@@ -229,9 +256,50 @@ const MenuPage = () => {
           )}
         </div>
       </div>
+
+      {/* 🎯 BARRA DE ACCIÓN CONTEXTUAL: Clasificación Masiva */}
+      {activeTab === "products" &&
+        categoryId === "3" &&
+        products.length > 0 && (
+          <div className="mb-8 animate-in slide-in-from-top-4 duration-500 ease-out">
+            <div className="bg-linear-to-r from-orange-500/10 via-orange-500/5 to-transparent border border-orange-100/50 rounded-4xl p-3 pl-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              {/* Lado Izquierdo: Información */}
+              <div className="flex items-center gap-4">
+                <div className="bg-white p-2.5 rounded-2xl shadow-sm text-[#FF8108]">
+                  <ArrowRightLeft size={20} strokeWidth={3} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#FF8108]">
+                    Gestión Masiva
+                  </p>
+                  <h4 className="text-sm font-bold text-gray-700 leading-tight">
+                    Tienes{" "}
+                    <span className="text-[#FF8108]">
+                      {products.length} productos
+                    </span>{" "}
+                    sin clasificar en el menú
+                  </h4>
+                </div>
+              </div>
+
+              {/* Lado Derecho: Acción Principal */}
+              <button
+                onClick={() => setIsMassMoveOpen(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#FF8108] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-orange-200 cursor-pointer group"
+              >
+                <ArrowRightLeft
+                  size={18}
+                  strokeWidth={4}
+                  className="group-hover:rotate-180 transition-transform duration-500"
+                />
+                Mover a Nueva Categoría
+              </button>
+            </div>
+          </div>
+        )}
+
       {/* 🚀 CONTENIDO DINÁMICO */}
       <div className="w-full min-h-[400px] overflow-hidden">
-        {/* ✅ Evita que la tabla o grid estiren el main */}
         {activeTab === "categories" ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <CategoryTable
@@ -264,7 +332,7 @@ const MenuPage = () => {
                       <ProductCard
                         product={product}
                         onEdit={handleEditProduct}
-                        onDelete={deleteProduct}
+                        onDelete={() => handleOpenDeleteProdModal(product)}
                       />
                     </div>
                   ))}
@@ -274,7 +342,7 @@ const MenuPage = () => {
                   <ProductTable
                     products={products}
                     onEdit={handleEditProduct}
-                    onDelete={deleteProduct}
+                    onDelete={(prod: any) => handleOpenDeleteProdModal(prod)}
                   />
                 </div>
               )
@@ -325,14 +393,14 @@ const MenuPage = () => {
           </>
         )}
       </div>
-      {/* 📦 MODALES CENTRALIZADOS */}
+
       <CategoryModal
         key={selectedCategory?.id || "new-category"}
-        isOpen={isCatModalOpen} // 🎯 Cambiado de isModalOpen a isCatModalOpen
+        isOpen={isCatModalOpen}
         category={selectedCategory}
         categories={categories}
         onSave={handleSave}
-        onClose={() => setIsCatModalOpen(false)} // 🎯 Cambiado de setIsModalOpen a setIsCatModalOpen
+        onClose={() => setIsCatModalOpen(false)}
       />
       <DeleteCategoryModal
         isOpen={isDelModalOpen}
@@ -342,15 +410,23 @@ const MenuPage = () => {
         productsCount={
           products.filter((p) => p.categoryId === categoryToDelete?.id).length
         }
-        onDeleteWithoutCategory={() => deleteCategory(categoryToDelete?.id!)}
+        onDeleteWithoutCategory={() =>
+          handleComplexDelete(() => categoriesAPI.delete(categoryToDelete?.id!))
+        }
         onDeleteWithProducts={() =>
-          categoriesAPI.deleteWithProducts(categoryToDelete?.id!)
+          handleComplexDelete(() =>
+            categoriesAPI.deleteWithProducts(categoryToDelete?.id!)
+          )
         }
         onMoveProductsToExisting={(id) =>
-          categoriesAPI.moveProducts(categoryToDelete?.id!, id)
+          handleComplexDelete(() =>
+            categoriesAPI.moveProducts(categoryToDelete?.id!, id)
+          )
         }
         onMoveProductsToNew={(name) =>
-          categoriesAPI.migrateToNew(categoryToDelete?.id!, name)
+          handleComplexDelete(() =>
+            categoriesAPI.migrateToNew(categoryToDelete?.id!, name)
+          )
         }
       />
       <ProductModal
@@ -359,6 +435,24 @@ const MenuPage = () => {
         product={selectedProduct}
         categories={categories}
         onSave={onSaveProduct}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={isConfirmProdDeleteOpen}
+        nombre={productToDelete?.name || "este platillo"}
+        loading={loading}
+        onCancel={() => {
+          setIsConfirmProdDeleteOpen(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteProduct}
+      />
+      <MassMoveProductsModal
+        isOpen={isMassMoveOpen}
+        onClose={() => setIsMassMoveOpen(false)}
+        categories={categories}
+        loading={loading}
+        onConfirm={handleMassMove}
       />
     </main>
   );

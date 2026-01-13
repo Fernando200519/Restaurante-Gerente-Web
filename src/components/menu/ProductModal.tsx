@@ -12,6 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import BaseModal from "../ui/BaseModal";
+
 import confetti from "canvas-confetti";
 import type { Product, ProductFormData, Category } from "../../types/menu";
 
@@ -141,7 +142,6 @@ const ProductModal: React.FC<ProductModalProps> = ({
         };
         setEditingIngIndex(null);
       } else {
-        // Añadiendo nuevo
         updatedIngs.push({ nombre: newIng });
       }
 
@@ -273,7 +273,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
             <button
               type="button"
               onClick={() => setCatDropdownOpen(!catDropdownOpen)}
-              className={`w-full px-5 py-4 border-2 rounded-2xl flex justify-between items-center transition-all bg-gray-50
+              className={`w-full px-5 py-4 border-2 rounded-2xl flex justify-between items-center transition-all bg-gray-50 cursor-pointer
                 ${
                   catDropdownOpen
                     ? "border-[#FF8108] bg-white ring-4 ring-orange-50"
@@ -306,7 +306,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                       setFormData({ ...formData, categoryId: c.id });
                       setCatDropdownOpen(false);
                     }}
-                    className={`w-full px-4 py-3 text-left text-sm font-bold rounded-xl transition-colors
+                    className={`w-full px-4 py-3 text-left text-sm font-bold rounded-xl transition-colors cursor-pointer
                       ${
                         formData.categoryId === c.id
                           ? "bg-orange-50 text-[#FF8108]"
@@ -641,13 +641,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-600"
+            className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-600 cursor-pointer"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-10 py-4 bg-[#FF8108] text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:bg-[#e67407] hover:-translate-y-1 transition-all"
+            className="px-10 py-4 bg-[#FF8108] text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-orange-100 hover:bg-[#e67407] hover:-translate-y-1 transition-all cursor-pointer"
           >
             {product ? "Actualizar Registro" : "Publicar en Menú"}
           </button>

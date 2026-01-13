@@ -7,6 +7,7 @@ import {
   User,
   Hash,
   SearchX,
+  ShoppingBag,
 } from "lucide-react";
 import { Order } from "../../types/order";
 
@@ -136,12 +137,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   </td>
 
                   <td className="px-8 py-5">
-                    <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200 shadow-inner">
-                      <Hash size={12} className="text-gray-400" />
-                      <span className="font-black text-gray-800 text-sm">
-                        {order.tableId}
-                      </span>
-                    </div>
+                    {order.tableId && order.tableId !== "N/A" ? (
+                      /* 🪑 VISTA PARA MESA: Se mantiene el estilo industrial con el # */
+                      <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200 shadow-inner">
+                        <Hash size={12} className="text-gray-400" />
+                        <span className="font-black text-gray-800 text-sm">
+                          {order.tableId}
+                        </span>
+                      </div>
+                    ) : (
+                      /* 🛍️ VISTA PARA LLEVAR: Estilo llamativo en azul para diferenciar del salón */
+                      <div className="inline-flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100 shadow-sm text-blue-600 animate-in fade-in duration-300">
+                        <ShoppingBag size={12} strokeWidth={3} />
+                        <span className="font-black text-[10px] uppercase tracking-widest">
+                          Para Llevar
+                        </span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-8 py-5 min-w-[200px]">

@@ -9,9 +9,6 @@ export const categoriesAPI = {
     const { data } = await apiClient.get<any[]>("/categories");
 
     return data.map((cat) => {
-      // 🎯 BUSCAMOS EL ID DEL PADRE:
-      // Si 'categoriaPadre' es un nombre (ej: "Con Alcohol"), buscamos en la lista
-      // qué categoría tiene ese nombre para obtener su ID real.
       const parentObj = data.find((item) => item.nombre === cat.categoriaPadre);
 
       return {
@@ -21,7 +18,6 @@ export const categoriesAPI = {
         status: cat.estado.toLowerCase() === "activa" ? "activo" : "inactivo",
         type: cat.tipo,
         parentName: cat.categoriaPadre,
-        // ✅ Ahora parentId tendrá el ID vinculado (ej: "20") y no null
         parentId: parentObj ? String(parentObj.id) : null,
       };
     });
@@ -49,23 +45,38 @@ export const categoriesAPI = {
   },
 
   update: async (id: string, formData: CategoryFormData): Promise<Category> => {
+    // 🎯 FIX: El backend de .NET a veces falla con PATCH si los tipos no son exactos.
+    // Convertimos parentId a número estrictamente.
+    const parentIdInt = formData.parentId
+      ? parseInt(String(formData.parentId), 10)
+      : 0;
+
     const body = {
       nombre: formData.name,
       descripcion: formData.description || null,
       estado: formData.status === "activo" ? "Activa" : "Inactiva",
-      categoriaPadreId: formData.parentId
-        ? parseInt(formData.parentId, 10)
-        : null,
+      categoriaPadreId: parentIdInt,
     };
-    const { data } = await apiClient.patch(`/categories/${id}`, body);
-    return {
-      id: String(data.id),
-      name: data.nombre,
-      description: data.descripcion || undefined,
-      status: fromBackendStatus(data.estado),
-      type: data.tipo,
-      parentId: data.categoriaPadreId ? String(data.categoriaPadreId) : null,
-    };
+
+    console.log("📤 Enviando PATCH a categoría:", id, "Body:", body);
+
+    try {
+      const { data } = await apiClient.patch(`/categories/${id}`, body);
+      return {
+        id: String(data.id),
+        name: data.nombre,
+        description: data.descripcion || undefined,
+        status: fromBackendStatus(data.estado),
+        type: data.tipo,
+        parentId: data.categoriaPadreId ? String(data.categoriaPadreId) : null,
+      };
+    } catch (error: any) {
+      if (error.response?.status === 500) {
+        const serverMsg = error.response.data?.message || error.response.data;
+        console.error("❌ ERROR CRÍTICO DEL BACKEND:", serverMsg);
+      }
+      throw error;
+    }
   },
 
   delete: async (id: string): Promise<void> => {
@@ -77,17 +88,44 @@ export const categoriesAPI = {
   },
 
   moveProducts: async (id: string, targetCategoryId: string): Promise<void> => {
-    await apiClient.post(
-      `/categories/${id}/move-products?targetCategoryID=${targetCategoryId}`
-    );
-    await apiClient.delete(`/categories/${id}`);
+    console.group("🚀 Debug: Clasificación Masiva");
+    console.log("Origen (id):", id);
+    console.log("Destino (targetCategoryID):", targetCategoryId);
+    console.groupEnd();
+
+    try {
+      await apiClient.post(
+        `/categories/${id}/move-products`,
+        {},
+        {
+          params: { targetCategoryID: targetCategoryId },
+        }
+      );
+
+      if (String(id) === "3") {
+        console.log(
+          "✅ Productos movidos. Categoría de sistema (ID 3) conservada."
+        );
+        return;
+      }
+
+      console.log("🗑️ Borrando categoría origen vacía...");
+      await apiClient.delete(`/categories/${id}`);
+    } catch (error: any) {
+      if (error.response) {
+        console.error("❌ ERROR DETALLADO DEL SERVIDOR:", error.response.data);
+      }
+      throw error;
+    }
   },
 
   migrateToNew: async (id: string, newName: string): Promise<void> => {
     await apiClient.post(
-      `/categories/${id}/migrate-products?newCategoryName=${encodeURIComponent(
-        newName
-      )}`
+      `/categories/${id}/migrate-products`,
+      {},
+      {
+        params: { newCategoryName: newName },
+      }
     );
   },
 };

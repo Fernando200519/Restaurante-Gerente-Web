@@ -5,7 +5,7 @@ import EmployeeStats from "../components/employees/EmployeeStats";
 import EmployeeTable from "../components/employees/EmployeeTable";
 import AddEmployeeModal from "../components/employees/AddEmployeeModal";
 import EditEmployeeModal from "../components/employees/EditEmployeeModal";
-import type { Employee, EmployeeFormData } from "../types/types";
+import type { Employee, EmployeeFormData } from "../types/employee";
 
 const Employees: React.FC = () => {
   const {

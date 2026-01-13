@@ -29,39 +29,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [estado, setEstado] = useState<string | null>(null);
   const [user, setUser] = useState<any | null>(null);
 
+  // 🎯 FIX 1: logoutUser debe forzar la redirección
   const logoutUser = useCallback(() => {
+    console.log("🚪 Cerrando sesión...");
     setToken(null);
     setRole(null);
     setEstado(null);
     setUser(null);
     removeToken();
+
+    // Si no usamos una librería de rutas (como react-router),
+    // esta es la forma más segura de limpiar la app y sacarte al login.
+    window.location.href = "/login";
   }, []);
 
   const loginUser = (data: LoginResponse) => {
     const jwt = data.accessToken;
-    const rol = data.infoUsuario?.tipo ?? null;
-    const estadoResp = data.infoUsuario?.estado ?? null;
-
     setToken(jwt);
-    setRole(rol);
-    setEstado(estadoResp);
+    setRole(data.infoUsuario?.tipo ?? null);
+    setEstado(data.infoUsuario?.estado ?? null);
     setUser(data.infoUsuario);
     saveToken(jwt);
   };
 
+  // 🆕 FIX 2: Escuchar el evento 'auth-sync' para cuando el Interceptor refresque el token
+  useEffect(() => {
+    const syncAuth = () => {
+      const currentToken = getToken();
+      if (currentToken !== token) {
+        setToken(currentToken);
+        console.log("🔄 Contexto sincronizado con el nuevo Token");
+      }
+    };
+
+    window.addEventListener("auth-sync", syncAuth);
+    return () => window.removeEventListener("auth-sync", syncAuth);
+  }, [token]);
+
+  // 🛡️ FIX 3: Temporizador de vida del token
   useEffect(() => {
     if (!token) return;
 
     try {
       const decoded: any = jwtDecode(token);
       const expirationTime = decoded.exp * 1000;
-      const currentTime = Date.now();
-
-      const timeLeft = expirationTime - currentTime;
-
-      console.log(
-        `⏱️ Sesión válida por: ${Math.round(timeLeft / 1000 / 60)} minutos`
-      );
+      const timeLeft = expirationTime - Date.now();
 
       if (timeLeft <= 0) {
         logoutUser();
@@ -69,22 +81,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const timer = setTimeout(() => {
-        console.warn(
-          "⚠️ El token ha expirado. Cerrando sesión por seguridad..."
-        );
-
-        toast.error("Sesión terminada", {
-          description:
-            "Por seguridad, tu sesión ha expirado. Ingresa de nuevo.",
-          duration: 6000,
+        toast.error("Sesión expirada", {
+          description: "Tu sesión ha terminado por seguridad.",
+          duration: 5000,
         });
-
         logoutUser();
       }, timeLeft);
 
       return () => clearTimeout(timer);
     } catch (error) {
-      console.error("❌ Error al decodificar el token:", error);
+      // Si el token es basura o está mal formado, te saca
+      console.error("❌ Error de validación de sesión:", error);
       logoutUser();
     }
   }, [token, logoutUser]);
@@ -106,7 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth debe usarse dentro de AuthProvider");
   return context;

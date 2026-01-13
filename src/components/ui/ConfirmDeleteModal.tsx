@@ -1,8 +1,8 @@
-// src/components/ui/ConfirmDeleteModal.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { Trash2, AlertTriangle, X, Loader2 } from "lucide-react";
 
 interface Props {
+  isOpen?: boolean;
   nombre: string;
   loading: boolean;
   onCancel: () => void;
@@ -10,11 +10,25 @@ interface Props {
 }
 
 export const ConfirmDeleteModal: React.FC<Props> = ({
+  isOpen,
   nombre,
   loading,
   onCancel,
   onConfirm,
 }) => {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
   const btnBase =
     "flex-1 px-6 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 

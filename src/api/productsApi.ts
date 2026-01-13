@@ -1,4 +1,3 @@
-// src/api/productsApi.ts
 import { apiClient } from "./config";
 import type { Product, ProductFormData } from "../types/menu";
 
@@ -50,12 +49,9 @@ export const productsAPI = {
       String(formData.precioIncluyeImpuestos)
     );
 
-    // ✅ Si el switch está apagado, mandamos null para que el back no asigne tasa
-    fd.append("TipoIva", formData.precioIncluyeImpuestos ? "Tasa16" : "");
-    // Nota: Dependiendo de tu axios/fetch, si mandas "" o no mandas el campo,
-    // el backend lo recibirá como null
+    const ivaValue = formData.precioIncluyeImpuestos ? "Tasa16" : "Exento";
+    fd.append("TipoIva", ivaValue);
 
-    // Opciones serializadas como JSON string
     fd.append(
       "ComplementosProducto",
       JSON.stringify(
@@ -75,6 +71,8 @@ export const productsAPI = {
     );
 
     if (formData.imageFile) fd.append("FormFile", formData.imageFile);
+    console.log("🚀 Enviando FormData:");
+    fd.forEach((value, key) => console.log(`${key}:`, value));
 
     const { data } = await apiClient.post("/products", fd, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -84,35 +82,54 @@ export const productsAPI = {
 
   update: async (id: string, formData: ProductFormData): Promise<Product> => {
     const fd = new FormData();
-    fd.append(
-      "CambiarImagen",
-      formData.imageFile ? "true" : formData.removeImage ? "true" : "false"
-    );
 
-    if (formData.name) fd.append("Nombre", formData.name);
-    if (formData.price) fd.append("Precio", String(formData.price));
-    // ✅ AÑADIR ESTO:
-    fd.append("TipoIva", formData.tipoIva);
-    fd.append(
-      "PrecioIncluyeImpuestos",
-      String(formData.precioIncluyeImpuestos)
-    );
+    const safeCategoryId = formData.categoryId.match(/^\d+$/)
+      ? formData.categoryId
+      : "3";
 
-    // ✅ ENVIAR OPCIONES TAMBIÉN EN EL UPDATE (si tu backend lo permite vía PATCH)
-    fd.append("ComplementosProducto", JSON.stringify(formData.complementos));
-    fd.append("ExclusionesProducto", JSON.stringify(formData.ingredientes));
+    const cambiarImgValue = formData.imageFile
+      ? "true"
+      : formData.removeImage
+      ? "true"
+      : "false";
+    fd.append("CambiarImagen", cambiarImgValue);
 
-    const { data } = await apiClient.patch(`/products/${id}`, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
+    fd.append("Nombre", formData.name || "Sin Nombre");
+    fd.append("Precio", String(formData.price || 0));
+    fd.append("CategoriaId", safeCategoryId);
+    fd.append("Descripcion", formData.description || "");
+    fd.append("Estado", formData.status === "activo" ? "Activo" : "Inactivo");
+
+    if (formData.imageFile) {
+      fd.append("FormFile", formData.imageFile);
+    }
+
+    console.group(`🚀 Intentando PATCH Producto ID: ${id}`);
+    fd.forEach((value, key) => {
+      console.log(`${key}:`, value === "" ? "(vacío)" : value);
     });
-    return mapAPIResponseToProduct(data);
+    console.groupEnd();
+
+    try {
+      const { data } = await apiClient.patch(`/products/${id}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return mapAPIResponseToProduct(data);
+    } catch (error: any) {
+      if (error.response) {
+        console.error(
+          "❌ Detalle del Error 500 del Servidor:",
+          error.response.data
+        );
+      }
+      throw error;
+    }
   },
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/products/${id}`);
   },
 
-  // Métodos de gestión granular de opciones
   addOptions: async (productId: string, options: any) =>
     apiClient.post(`/products/${productId}/options`, options),
 

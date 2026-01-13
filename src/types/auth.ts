@@ -14,5 +14,6 @@ export interface InfoUsuario {
 
 export interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   infoUsuario: InfoUsuario;
 }

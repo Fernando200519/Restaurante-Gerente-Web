@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
-import { Utensils, GlassWater, LayoutGrid } from "lucide-react";
-import type { Category, Product } from "../../types/menu"; //
+import { Utensils, GlassWater, LayoutGrid, Tag } from "lucide-react";
+import type { Category, Product } from "../../types/menu";
 
 interface ProductFiltersProps {
   categories: Category[];
-  products: Product[]; // 🆕 Recibimos la lista completa de productos
+  products: Product[];
   selectedCategoryId: string | null;
   onCategoryChange: (categoryId: string | null) => void;
 }
@@ -15,15 +15,22 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
   selectedCategoryId,
   onCategoryChange,
 }) => {
-  // 1. Identificamos categorías hoja (sin hijos)
   const visibleCategories = useMemo(() => {
     const parentNames = new Set(
       categories.map((c) => c.parentName).filter(Boolean)
     );
-    return categories.filter((cat) => !parentNames.has(cat.name));
+
+    const leafCategories = categories.filter(
+      (cat) => !parentNames.has(cat.name)
+    );
+
+    return leafCategories.sort((a, b) => {
+      if (String(a.id) === "3") return -1;
+      if (String(b.id) === "3") return 1;
+      return a.name.localeCompare(b.name);
+    });
   }, [categories]);
 
-  // 🎯 2. Calculamos los contadores por ID de categoría
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
     products.forEach((p) => {
@@ -58,10 +65,11 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
           </span>
         </button>
 
-        {/* CATEGORÍAS INDIVIDUALES */}
+        {/* BOTONES SIGUIENTES: CATEGORÍAS (Iniciando con "Sin categoría") */}
         {visibleCategories.map((category) => {
           const isActive = selectedCategoryId === category.id;
-          const count = counts[category.id] || 0; //
+          const count = counts[category.id] || 0;
+          const isUncategorized = String(category.id) === "3";
 
           return (
             <button
@@ -70,17 +78,22 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
               className={`group relative flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 ${
                 isActive
                   ? "bg-[#FF8108] text-white shadow-xl shadow-orange-200 -translate-y-1"
+                  : isUncategorized
+                  ? "bg-orange-50/50 text-[#FF8108] border border-orange-100 hover:bg-orange-100" // Estilo sutil para diferenciarla
                   : "bg-white text-gray-400 border border-gray-100 hover:border-orange-200 hover:text-[#FF8108]"
               }`}
             >
-              {category.type === "Bebidas" ? (
+              {/* Icono dinámico: Tag para Sin Categoría, Glass para Bebidas, Utensils para el resto */}
+              {isUncategorized ? (
+                <Tag size={16} />
+              ) : category.type === "Bebidas" ? (
                 <GlassWater size={16} />
               ) : (
                 <Utensils size={16} />
               )}
+
               <span>{category.name}</span>
 
-              {/* ✅ BADGE DE CONTEO */}
               <span
                 className={`ml-1 px-1.5 py-0.5 rounded-lg text-[9px] font-black transition-colors ${
                   isActive

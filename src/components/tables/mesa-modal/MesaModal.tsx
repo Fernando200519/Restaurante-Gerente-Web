@@ -15,10 +15,11 @@ import {
 
 import { MesaDetailsTab } from "./MesaDetailsTab";
 import { MesaEditTab } from "./MesaEditTab";
+
 import {
-  ConfirmDeleteModal,
   ConfirmDisableModal,
   ConfirmEnableModal,
+  ConfirmDeleteModal,
 } from "./modals";
 
 interface Props {
@@ -39,6 +40,12 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, zonas, onClose }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [showEnableConfirm, setShowEnableConfirm] = useState(false);
+
+  useEffect(() => {
+    if (visible && mesa) {
+      setLocalMesa(mesa);
+    }
+  }, [visible, mesa]);
 
   useEffect(() => {
     let isMounted = true;
@@ -95,7 +102,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, zonas, onClose }) => {
 
   const isInactive =
     localMesa.estado === "INACTIVA" || localMesa.estado === "DESACTIVADA";
-  // ✅ Incluimos ESPERANDO_PAGO como estado ocupado para las opciones de edición
+
   const isOccupied = [
     "OCUPADA",
     "ESPERANDO",
@@ -259,6 +266,7 @@ const MesaModal: React.FC<Props> = ({ mesa, visible, zonas, onClose }) => {
       {/* MODALES DE CONFIRMACIÓN */}
       {showDeleteConfirm && (
         <ConfirmDeleteModal
+          isOpen={true}
           nombre={localMesa.nombre}
           loading={loading}
           onCancel={() => setShowDeleteConfirm(false)}

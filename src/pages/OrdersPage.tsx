@@ -4,7 +4,7 @@ import { StatsHeader } from "../components/orders/StatsHeader";
 import { OrdersTable } from "../components/orders/OrdersTable";
 import { useOrders } from "../hooks/useOrders";
 import { OrderDetailsModal } from "../components/orders/OrdersDetailModal";
-import { Order } from "../types/order";
+import { Order, OrderStatus } from "../types/order";
 import OrdersTableSkeleton from "../components/orders/OrdersTableSkeleton";
 
 const OrdersPage: React.FC = () => {
@@ -25,6 +25,12 @@ const OrdersPage: React.FC = () => {
 
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null);
+
+  useEffect(() => {
+    if (!selectedStatus) {
+      setSelectedStatus("Solicitado" as OrderStatus);
+    }
+  }, [selectedStatus, setSelectedStatus]);
 
   useEffect(() => {
     const interval = setInterval(() => refresh(), 10000);
@@ -96,7 +102,6 @@ const OrdersPage: React.FC = () => {
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20 space-y-4 animate-in fade-in duration-700">
-      {/* 📊 SECCIÓN DE RESUMEN */}
       <section className="relative z-30">
         <StatsHeader
           counts={statusCounts}
@@ -168,12 +173,10 @@ const OrdersPage: React.FC = () => {
         </button>
       </div>
 
-      {/* 🚀 EL CAMBIO ESTÁ AQUÍ: Invocamos la función de renderizado */}
       <div className="relative z-0 min-h-[500px] pt-4">
         {renderMainContent()}
       </div>
 
-      {/* 🚀 MODAL AL FINAL PARA EVITAR CONFLICTOS DE Z-INDEX */}
       <OrderDetailsModal
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}

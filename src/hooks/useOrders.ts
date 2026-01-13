@@ -15,10 +15,8 @@ export const useOrders = (pageSize = 50) => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | null>(
-    null
-  );
-
+  const [selectedStatus, setSelectedStatus] =
+    useState<OrderStatus>("Solicitado");
   const [selectedDate, setSelectedDate] = useState(() => {
     const local = new Date();
     return `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(

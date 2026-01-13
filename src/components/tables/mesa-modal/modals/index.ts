@@ -1,3 +1,3 @@
-export * from "./ConfirmDeleteModal";
-export * from "./ConfirmDisableModal";
-export * from "./ConfirmEnableModal";
+export * from "../../../ui/ConfirmDeleteModal";
+export * from "../../../ui/ConfirmDisableModal";
+export * from "../../../ui/ConfirmEnableModal";

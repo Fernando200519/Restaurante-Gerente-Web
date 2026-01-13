@@ -1,7 +1,7 @@
 // src/components/employees/EmployeeStats.tsx
 import React from "react";
 import { Users, ChefHat, HandCoins, Activity, UserCheck } from "lucide-react";
-import type { EmployeeStats as EmployeeStatsType } from "../../types/types";
+import type { EmployeeStats as EmployeeStatsType } from "../../types/employee";
 
 interface EmployeeStatsProps {
   stats: EmployeeStatsType;

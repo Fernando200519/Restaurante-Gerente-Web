@@ -80,8 +80,8 @@ const StatCard: React.FC<StatCardProps> = ({
 
 interface StatsHeaderProps {
   counts: Record<string, number>;
-  selectedStatus: OrderStatus | null;
-  onSelectStatus: (status: OrderStatus | null) => void;
+  selectedStatus: OrderStatus;
+  onSelectStatus: (status: OrderStatus) => void;
 }
 
 export const StatsHeader: React.FC<StatsHeaderProps> = ({
@@ -89,8 +89,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
   selectedStatus,
   onSelectStatus,
 }) => {
-  const toggle = (status: OrderStatus) =>
-    onSelectStatus(selectedStatus === status ? null : status);
+  const handleSelect = (status: OrderStatus) => onSelectStatus(status);
 
   return (
     <div className="relative z-30">
@@ -103,7 +102,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
           bgLight="bg-blue-50"
           borderClass="border-blue-100"
           isActive={selectedStatus === "Solicitado"}
-          onClick={() => toggle("Solicitado")}
+          onClick={() => handleSelect("Solicitado")} // Usamos la nueva función
         />
         <StatCard
           title="En Cocina"
@@ -113,7 +112,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
           bgLight="bg-amber-50"
           borderClass="border-amber-100"
           isActive={selectedStatus === "En Preparación"}
-          onClick={() => toggle("En Preparación")}
+          onClick={() => handleSelect("En Preparación")}
         />
         <StatCard
           title="Listas"
@@ -123,7 +122,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
           bgLight="bg-emerald-50"
           borderClass="border-emerald-100"
           isActive={selectedStatus === "Listo"}
-          onClick={() => toggle("Listo")}
+          onClick={() => handleSelect("Listo")}
         />
         <StatCard
           title="Entregadas"
@@ -133,7 +132,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
           bgLight="bg-gray-100"
           borderClass="border-gray-200"
           isActive={selectedStatus === "Entregado"}
-          onClick={() => toggle("Entregado")}
+          onClick={() => handleSelect("Entregado")}
         />
         <StatCard
           title="Canceladas"
@@ -143,7 +142,7 @@ export const StatsHeader: React.FC<StatsHeaderProps> = ({
           bgLight="bg-rose-50"
           borderClass="border-rose-100"
           isActive={selectedStatus === "Cancelada"}
-          onClick={() => toggle("Cancelada")}
+          onClick={() => handleSelect("Cancelada")}
         />
       </div>
 

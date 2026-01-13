@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import BaseModal from "../ui/BaseModal";
 import ConfirmModal from "../ui/ConfirmModal";
-import type { Employee, EmployeeRole, Gender } from "../../types/types";
+import type { Employee, EmployeeRole, Gender } from "../../types/employee";
 
 interface EditEmployeeModalProps {
   isOpen: boolean;

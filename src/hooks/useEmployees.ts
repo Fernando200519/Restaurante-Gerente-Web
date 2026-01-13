@@ -1,7 +1,10 @@
-// src/hooks/useEmployees.ts
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { employeesAPI } from "../api/employees";
-import type { Employee, EmployeeFormData, EmployeeStats } from "../types/types";
+import { employeesAPI } from "../api/employeesApi";
+import type {
+  Employee,
+  EmployeeFormData,
+  EmployeeStats,
+} from "../types/employee";
 
 export const useEmployees = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -45,7 +48,6 @@ export const useEmployees = () => {
     );
   }, [employees, searchTerm]);
 
-  // Funciones de Acción (CRUD)
   const createEmployee = async (data: EmployeeFormData) => {
     await employeesAPI.create(data);
     await loadEmployees();

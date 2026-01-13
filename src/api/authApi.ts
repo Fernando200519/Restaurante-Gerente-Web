@@ -1,41 +1,22 @@
 import axios from "axios";
-import { apiClient } from "./config";
+import { apiClient, API_BASE_URL } from "./config";
 import { LoginRequest, LoginResponse } from "../types/auth";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://137.184.191.81";
-
-// axios.defaults.withCredentials = true;
+import { saveToken } from "../utils/storage";
 
 export const login = async (
   credentials: LoginRequest
 ): Promise<LoginResponse> => {
-  if (!API_BASE_URL) throw new Error("VITE_API_URL no está definida");
-
   const { data } = await axios.post<LoginResponse>(
     `${API_BASE_URL}/login`,
-    credentials
+    credentials,
+    { withCredentials: true }
   );
 
-  return data;
-};
-
-export const refreshSession = async (): Promise<string> => {
-  const response = await fetch(`${API_BASE_URL}/refresh`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-    },
-    credentials: "omit",
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("❌ Error en refresh:", response.status, errorText);
-    throw new Error(`Refresh falló: ${response.status}`);
+  if (data.accessToken) {
+    saveToken(data.accessToken);
   }
 
-  const data: LoginResponse = await response.json();
-  return data.accessToken;
+  return data;
 };
 
 export const forgotPassword = async (
